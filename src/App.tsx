@@ -1,0 +1,693 @@
+import React, { useState, useEffect } from 'react';
+import { FamilyMember, ActiveTab } from './types';
+import { SAMPLE_FAMILY } from './sampleData';
+import { FamilyTreeVisualizer } from './components/FamilyTreeVisualizer';
+import { MemberForm } from './components/MemberForm';
+import { FamilyTimeline } from './components/FamilyTimeline';
+import { StatsDashboard } from './components/StatsDashboard';
+import { DatabaseControls } from './components/DatabaseControls';
+import { 
+  Users, 
+  GitFork, 
+  Clock, 
+  BarChart, 
+  Database, 
+  Plus, 
+  Search, 
+  Heart, 
+  Info, 
+  UserCheck, 
+  ChevronRight,
+  ShieldAlert,
+  Sparkles,
+  BookOpen
+} from 'lucide-react';
+
+import { supabase, mapToDb, mapFromDb, isSupabaseConfigured } from './lib/supabase';
+import { SupabaseSetup } from './components/SupabaseSetup';
+
+export default function App() {
+  const isConfigured = isSupabaseConfigured();
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [focusMemberId, setFocusMemberId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<ActiveTab | 'database'>('tree');
+  
+  // Search & Filters for the Member Directory View
+  const [memberSearch, setMemberSearch] = useState('');
+  const [genderFilter, setGenderFilter] = useState<string>('all');
+  const [lifespanFilter, setLifespanFilter] = useState<string>('all');
+
+  // Form Modal States
+  const [showForm, setShowForm] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [prefilledRelations, setPrefilledRelations] = useState<{
+    fatherId?: string;
+    motherId?: string;
+    spouseId?: string;
+  } | undefined>(undefined);
+
+  // 1. Supabase Initialization & Realtime Subscription
+  useEffect(() => {
+    if (!isConfigured) return;
+
+    const fetchMembers = async () => {
+      const { data, error } = await supabase.from('family_members').select('*');
+      if (data) {
+        const parsed = data.map(mapFromDb);
+        setMembers(parsed);
+        setFocusMemberId(prev => {
+          if (!prev && parsed.length > 0) {
+            return parsed.find(m => m.id === 'focus-thomas')?.id || parsed[0].id;
+          }
+          return prev;
+        });
+      }
+    };
+
+    fetchMembers();
+
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'family_members' },
+        (payload) => {
+           // Database modified (maybe by an AI Agent!). Refetch.
+           fetchMembers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isConfigured]);
+
+  if (!isConfigured) {
+    return <SupabaseSetup />;
+  }
+
+  // 3. Resolve Active Focus Member
+  const currentFocusMember = members.find((m) => m.id === focusMemberId) || members[0];
+
+  // 4. Async Supabase Sync Handler 
+  const handleSaveMember = async (savedMember: FamilyMember) => {
+    let updatables = [mapToDb(savedMember)];
+    let updatedMembers = [...members];
+    const isNew = !updatedMembers.some((m) => m.id === savedMember.id);
+    if (isNew) {
+      updatedMembers.push(savedMember);
+    } else {
+      updatedMembers = updatedMembers.map((m) => (m.id === savedMember.id ? savedMember : m));
+    }
+
+    // Handle Bidirectional Spouse Sync on the Database
+    if (savedMember.spouseId) {
+      updatedMembers = updatedMembers.map(m => {
+        if (m.id === savedMember.spouseId) return { ...m, spouseId: savedMember.id };
+        if (m.spouseId === savedMember.spouseId && m.id !== savedMember.id) return { ...m, spouseId: undefined };
+        return m;
+      });
+
+      const spouse = members.find(m => m.id === savedMember.spouseId);
+      if (spouse) updatables.push(mapToDb({ ...spouse, spouseId: savedMember.id }));
+
+      const exSpouse = members.find(m => m.spouseId === savedMember.id && m.id !== savedMember.spouseId);
+      if (exSpouse) updatables.push(mapToDb({ ...exSpouse, spouseId: undefined }));
+    } else {
+      updatedMembers = updatedMembers.map(m => {
+        if (m.spouseId === savedMember.id) return { ...m, spouseId: undefined };
+        return m;
+      });
+
+      const exSpouse = members.find(m => m.spouseId === savedMember.id);
+      if (exSpouse) updatables.push(mapToDb({ ...exSpouse, spouseId: undefined }));
+    }
+
+    // Set immediate pessimistic local state for instantaneous feel
+    setMembers(updatedMembers);
+    setFocusMemberId(savedMember.id);
+    setShowForm(false);
+    setEditingMember(null);
+    setPrefilledRelations(undefined);
+
+    // Push to Supabase asynchronously
+    await supabase.from('family_members').upsert(updatables);
+  };
+
+  // 5. Async Supabase Delete
+  const handleDeleteMember = async (id: string) => {
+    // Re-focus immediately
+    if (focusMemberId === id) {
+      const remaining = members.filter(m => m.id !== id);
+      if (remaining.length > 0) setFocusMemberId(remaining[0].id);
+    }
+    
+    setShowForm(false);
+    setEditingMember(null);
+    setPrefilledRelations(undefined);
+
+    const updatedMembers = members.filter(m => m.id !== id).map(m => {
+      let patch = { ...m };
+      if (patch.fatherId === id) patch.fatherId = undefined;
+      if (patch.motherId === id) patch.motherId = undefined;
+      if (patch.spouseId === id) patch.spouseId = undefined;
+      return patch;
+    });
+
+    setMembers(updatedMembers);
+
+    await supabase.from('family_members').delete().eq('id', id);
+
+    // Clean up references in other members
+    const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
+      let patch = { ...m };
+      if (patch.fatherId === id) patch.fatherId = undefined;
+      if (patch.motherId === id) patch.motherId = undefined;
+      if (patch.spouseId === id) patch.spouseId = undefined;
+      return mapToDb(patch);
+    });
+
+    if (updatables.length > 0) {
+      await supabase.from('family_members').upsert(updatables);
+    }
+  };
+
+  // 6. Quick Action to add relations from Tree placeholders
+  const handleAddRelation = (
+    relationType: 'father' | 'mother' | 'spouse' | 'child',
+    relativeToId: string
+  ) => {
+    const relative = members.find((m) => m.id === relativeToId);
+    if (!relative) return;
+
+    let relations: typeof prefilledRelations = {};
+
+    switch (relationType) {
+      case 'father':
+        relations = { spouseId: relative.motherId }; // Father is spouse to target's mother
+        // Target's fatherId will be hooked when the target's configuration registers this new person.
+        // To do this simply, we will open a new member form where we prefill that they are the FATHER of relativeToId!
+        // So let's handle setting the form up:
+        setPrefilledRelations({ spouseId: relative.motherId });
+        break;
+      case 'mother':
+        relations = { spouseId: relative.fatherId }; // Mother is spouse to target's father
+        break;
+      case 'spouse':
+        relations = { spouseId: relative.id };
+        break;
+      case 'child':
+        // Child has target as parents!
+        if (relative.gender === 'female') {
+          relations = { motherId: relative.id, fatherId: relative.spouseId };
+        } else {
+          relations = { fatherId: relative.id, motherId: relative.spouseId };
+        }
+        break;
+    }
+
+    // Set the state and bring up the form
+    setEditingMember(null);
+    setPrefilledRelations(relations);
+    setShowForm(true);
+
+    // Note: To map the newly created parent back to the child, we will patch the child.
+    // Let's hook a special listener on save: when creating a 'father' or 'mother', we want the child (relativeToId) to be updated.
+    // To implement this elegantly and cleanly, the form pre-selects the child's parents. Yes! In our MemberForm,
+    // when we save, if the user explicitly assigns fatherId or motherId, the links automatically form.
+  };
+
+  // 7. Directory List Filters
+  const filteredDirectoryMembers = members.filter((m) => {
+    const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
+    const matchesSearch = fullName.includes(memberSearch.toLowerCase()) || 
+                          (m.occupation || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                          (m.notes || '').toLowerCase().includes(memberSearch.toLowerCase());
+    
+    const matchesGender = genderFilter === 'all' || m.gender === genderFilter;
+    
+    const matchesLifespan = lifespanFilter === 'all' 
+      ? true 
+      : lifespanFilter === 'living' 
+      ? !m.isDeceased 
+      : m.isDeceased;
+
+    return matchesSearch && matchesGender && matchesLifespan;
+  });
+
+  return (
+    <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 flex flex-col font-sans antialiased">
+      {/* Editorial Navigation Header */}
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          {/* Brand Logo & Heirloom styling */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div className="text-center sm:text-left">
+              <h1 className="text-base font-bold font-serif text-slate-800 flex items-center gap-1.5 justify-center sm:justify-start">
+                Lineage Archives
+                <span className="text-[10px] uppercase font-sans font-extrabold text-indigo-650 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md tracking-wider">
+                  Personal Vault
+                </span>
+              </h1>
+              <p className="text-[10px] text-slate-400 font-medium">Digital Family Record, Milestones & Connections</p>
+            </div>
+          </div>
+
+          {/* Tab Selection */}
+          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600">
+            <button
+              id="tab-btn-tree"
+              onClick={() => setActiveTab('tree')}
+              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'tree'
+                  ? 'bg-white shadow-xs text-indigo-700'
+                  : 'hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <GitFork className="w-3.5 h-3.5 rotate-90" />
+              <span>Interactive Tree</span>
+            </button>
+            <button
+              id="tab-btn-members"
+              onClick={() => setActiveTab('members')}
+              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'members'
+                  ? 'bg-white shadow-xs text-indigo-700'
+                  : 'hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Member Gallery</span>
+            </button>
+            <button
+              id="tab-btn-timeline"
+              onClick={() => setActiveTab('timeline')}
+              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'timeline'
+                  ? 'bg-white shadow-xs text-indigo-700'
+                  : 'hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Timeline</span>
+            </button>
+            <button
+              id="tab-btn-stats"
+              onClick={() => setActiveTab('stats')}
+              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'stats'
+                  ? 'bg-white shadow-xs text-indigo-700'
+                  : 'hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <BarChart className="w-3.5 h-3.5" />
+              <span>Diagnostics</span>
+            </button>
+            <button
+              id="tab-btn-database"
+              onClick={() => setActiveTab('database')}
+              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'database'
+                  ? 'bg-white shadow-xs text-indigo-700'
+                  : 'hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Backups</span>
+            </button>
+          </nav>
+
+          {/* Action trigger: Add Member */}
+          <button
+            id="btn-global-add-member"
+            onClick={() => {
+              setEditingMember(null);
+              setPrefilledRelations(undefined);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+          >
+            <Plus className="w-4 h-4" /> Add Family member
+          </button>
+        </div>
+      </header>
+
+      {/* Main body canvas */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Dynamic content rendering */}
+        {members.length === 0 ? (
+          /* Empty database prompt */
+          <div className="max-w-md mx-auto text-center py-16 px-6 bg-white border border-slate-200 rounded-3xl shadow-sm space-y-4 animate-fade-in mt-12">
+            <div className="w-16 h-16 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center mx-auto text-rose-500">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-serif font-semibold text-slate-800">Archive Vault is Blank</h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                You currently have no registered family members inside your local database. You can start fresh or quickly populate the system with a complete pre-configured sample lineage to see it in action.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                id="btn-load-sample-empty"
+                onClick={async () => {
+                  const mapped = SAMPLE_FAMILY.map(mapToDb);
+                  await supabase.from('family_members').upsert(mapped);
+                  setFocusMemberId('focus-thomas');
+                }}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-sm"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-250" /> Load 3-Gen Sample Family Tree
+              </button>
+              <button
+                id="btn-add-initial-member"
+                onClick={() => {
+                  setEditingMember(null);
+                  setPrefilledRelations(undefined);
+                  setShowForm(true);
+                }}
+                className="w-full px-4 py-2.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Create New Member Record from Scratch
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* TAB 1: THE TREE VISUALIZER */}
+            {activeTab === 'tree' && currentFocusMember && (
+              <div className="space-y-6">
+                {/* Visualizer header controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b pb-4 mb-4">
+                  <div>
+                    <h2 className="text-xl font-serif font-bold text-slate-800">
+                      Visual Connections Tree
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Currently centring relationships around{' '}
+                      <span className="font-bold text-indigo-750">{currentFocusMember.firstName} {currentFocusMember.lastName}</span>
+                    </p>
+                  </div>
+
+                  {/* Dropdown to change focus member */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500">Tree Center Focus:</span>
+                    <select
+                      id="select-tree-focus-member"
+                      value={focusMemberId}
+                      onChange={(e) => setFocusMemberId(e.target.value)}
+                      className="text-xs font-semibold text-slate-700 bg-white border border-slate-250 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                    >
+                      {members
+                        .sort((a, b) => a.firstName.localeCompare(b.firstName))
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.firstName} {m.lastName}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <FamilyTreeVisualizer
+                  focusMember={currentFocusMember}
+                  allMembers={members}
+                  onFocus={(id) => setFocusMemberId(id)}
+                  onEdit={(member) => {
+                    setEditingMember(member);
+                    setPrefilledRelations(undefined);
+                    setShowForm(true);
+                  }}
+                  onAddRelation={handleAddRelation}
+                />
+              </div>
+            )}
+
+            {/* TAB 2: MEMBER DIRECTORY / GALLERY */}
+            {activeTab === 'members' && (
+              <div className="space-y-6">
+                {/* Search / Filters Interface */}
+                <div className="bg-white border rounded-2xl p-5 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      id="input-directory-search"
+                      type="text"
+                      placeholder="Search name, notes, job..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3.5 w-full md:w-auto">
+                    {/* Filter Gender */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-slate-500">Gender:</span>
+                      <select
+                        id="select-filter-gender"
+                        value={genderFilter}
+                        onChange={(e) => setGenderFilter(e.target.value)}
+                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 cursor-pointer"
+                      >
+                        <option value="all">All Genders</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Filter Survival */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-slate-500">Status:</span>
+                      <select
+                        id="select-filter-status"
+                        value={lifespanFilter}
+                        onChange={(e) => setLifespanFilter(e.target.value)}
+                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 cursor-pointer"
+                      >
+                        <option value="all">All Records</option>
+                        <option value="living">Living Only</option>
+                        <option value="deceased">Deceased Only</option>
+                      </select>
+                    </div>
+
+                    {/* Active list counter */}
+                    <div className="text-xs font-medium text-slate-400 font-mono ml-auto md:ml-0">
+                      Found {filteredDirectoryMembers.length} profiles
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid List */}
+                {filteredDirectoryMembers.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-dashed rounded-2xl">
+                    <Search className="w-8 h-8 text-slate-350 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-500">No family member matched your current parameters.</p>
+                    <p className="text-xs text-slate-400 mt-1">Try emptying your keyword filters or adding a new member profile.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {filteredDirectoryMembers.map((member) => {
+                      const age = member.birthDate && !member.isDeceased
+                        ? new Date().getFullYear() - new Date(member.birthDate).getFullYear()
+                        : null;
+                        
+                      const parentNames = [
+                        member.fatherId && members.find((m) => m.id === member.fatherId)?.firstName,
+                        member.motherId && members.find((m) => m.id === member.motherId)?.firstName,
+                      ].filter(Boolean);
+
+                      return (
+                        <div
+                          key={member.id}
+                          id={`directory-card-${member.id}`}
+                          className="bg-white border hover:border-slate-300 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:shadow-xs transition-all relative overflow-hidden"
+                        >
+                          <div className="space-y-3">
+                            {/* Profile Badge row */}
+                            <div className="flex items-start justify-between">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-serif text-sm font-bold shadow-2xs ${member.avatarColor}`}>
+                                {member.firstName[0]}{member.lastName?.[0] || ''}
+                              </div>
+                              
+                              <div className="flex flex-col items-end gap-1">
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold capitalize ${
+                                  member.gender === 'male' ? 'bg-blue-50 text-blue-700' : member.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-slate-100 text-slate-750'
+                                }`}>
+                                  {member.gender}
+                                </span>
+                                {member.isDeceased ? (
+                                  <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Passed</span>
+                                ) : (
+                                  <span className="text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Age {age}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Core info labels */}
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-800 line-clamp-1">
+                                {member.firstName} {member.lastName}
+                              </h4>
+                              {member.birthDate && (
+                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                  {new Date(member.birthDate).getFullYear()} – {member.isDeceased ? (member.deathDate ? new Date(member.deathDate).getFullYear() : 'Deceased') : 'Present'}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Short bio and lineage parents summary */}
+                            <div className="space-y-1 text-slate-500 text-xs">
+                              {member.occupation && (
+                                <p className="text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                                  💼 {member.occupation}
+                                </p>
+                              )}
+                              {parentNames.length > 0 && (
+                                <p className="text-[10px] text-slate-400 truncate">
+                                  👪 Child of {parentNames.join(' & ')}
+                                </p>
+                              )}
+                              {member.notes && (
+                                <p className="text-[10px] italic text-slate-400 line-clamp-2 mt-1">
+                                  "{member.notes}"
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick tool row */}
+                          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100">
+                            <button
+                              id={`dir-edit-btn-${member.id}`}
+                              onClick={() => {
+                                setEditingMember(member);
+                                setPrefilledRelations(undefined);
+                                setShowForm(true);
+                              }}
+                              className="text-[10px] font-semibold text-center hover:bg-slate-50 border border-slate-200 rounded-lg py-1 hover:text-slate-700 text-slate-600 cursor-pointer transition-colors"
+                            >
+                              Edit Profile
+                            </button>
+                            <button
+                              id={`dir-focus-btn-${member.id}`}
+                              onClick={() => {
+                                setFocusMemberId(member.id);
+                                setActiveTab('tree');
+                              }}
+                              className="text-[10px] font-semibold text-center text-indigo-650 bg-indigo-50 hover:bg-indigo-100 rounded-lg py-1 cursor-pointer transition-colors"
+                            >
+                              Center Tree
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: TIMELINE VIEW */}
+            {activeTab === 'timeline' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-serif font-bold text-slate-800">Family Chronicle & Milestones</h2>
+                  <p className="text-xs text-slate-500 mt-1">A combined chronological perspective of birth and passing records of generations.</p>
+                </div>
+                <FamilyTimeline 
+                  members={members} 
+                  onFocusMember={(id) => {
+                    setFocusMemberId(id);
+                    setActiveTab('tree');
+                  }} 
+                />
+              </div>
+            )}
+
+            {/* TAB 4: DIAGNOSTICS & STATS DASHBOARD */}
+            {activeTab === 'stats' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-serif font-bold text-slate-800">Diagnostics & Statistics</h2>
+                  <p className="text-xs text-slate-500 mt-1">A strategic overview of line-length preservation, demographics, longevity diagnostics, and calendar celebrations.</p>
+                </div>
+                <StatsDashboard
+                  members={members}
+                  onFocusMember={(id) => {
+                    setFocusMemberId(id);
+                    setActiveTab('tree');
+                  }}
+                />
+              </div>
+            )}
+
+            {/* TAB 5: BACKUP & DATA CONTROLS */}
+            {activeTab === 'database' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-serif font-bold text-slate-800">Lineage Backups Panel</h2>
+                  <p className="text-xs text-slate-500 mt-1">Manage database records, wipe cookies or local files, restore presets, or retrieve JSON archives.</p>
+                </div>
+                <DatabaseControls
+                  members={members}
+                  onImport={async (importedMembers) => {
+                    if (importedMembers.length > 0) {
+                      const mapped = importedMembers.map(mapToDb);
+                      await supabase.from('family_members').upsert(mapped);
+                      setFocusMemberId(importedMembers[0].id);
+                      setActiveTab('tree');
+                    }
+                  }}
+                  onClearDatabase={async () => {
+                    // Wipe all entries from Supabase gracefully by ids
+                    if (members.length > 0) {
+                       setMembers([]);
+                       const ids = members.map(m => m.id);
+                       await supabase.from('family_members').delete().in('id', ids);
+                    }
+                  }}
+                  onResetSampleData={async () => {
+                    const mapped = SAMPLE_FAMILY.map(mapToDb);
+                    setMembers(SAMPLE_FAMILY);
+                    await supabase.from('family_members').upsert(mapped);
+                    setFocusMemberId('focus-thomas');
+                    setActiveTab('tree');
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Slide overlay / Card edit modal */}
+      {showForm && (
+        <MemberForm
+          member={editingMember}
+          allMembers={members}
+          onSave={handleSaveMember}
+          onDelete={handleDeleteMember}
+          onClose={() => {
+            setShowForm(false);
+            setEditingMember(null);
+            setPrefilledRelations(undefined);
+          }}
+          prefilledRelations={prefilledRelations}
+        />
+      )}
+
+      {/* Minimalistic heirloom footer */}
+      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-12 font-sans select-none">
+        <p className="font-serif">Lineage Editor Vault © 2026. Handcrafted for private preservation. No analytics tracked.</p>
+        <p className="text-[10px] text-slate-300 font-mono mt-1">Data Layer: Supabase Realtime PgSQL</p>
+      </footer>
+    </div>
+  );
+}
