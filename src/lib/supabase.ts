@@ -9,63 +9,73 @@
 import { createClient } from '@supabase/supabase-js';
 import { FamilyMember } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-export const isSupabaseConfigured = () => {
-  return supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
-};
+let isConfigured = false;
+let supabaseClient: any = null;
 
-export const supabase = isSupabaseConfigured() 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null as any;
+try {
+  if (supabaseUrl && supabaseAnonKey && (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://'))) {
+    // This will throw if the URL is completely invalid
+    new URL(supabaseUrl);
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    isConfigured = true;
+  }
+} catch (e) {
+  console.error("Failed to initialize Supabase client:", e);
+  isConfigured = false;
+}
+
+export const isSupabaseConfigured = () => isConfigured;
+export const supabase = supabaseClient;
 
 export function mapToDb(member: FamilyMember) {
   return {
     id: member.id,
-    first_name: member.firstName,
-    last_name: member.lastName,
-    gender: member.gender,
-    birth_date: member.birthDate,
-    birth_place: member.birthPlace,
-    is_deceased: member.isDeceased,
-    death_date: member.deathDate,
-    death_place: member.deathPlace,
-    occupation: member.occupation,
-    notes: member.notes,
-    avatar_color: member.avatarColor,
-    email: member.email,
-    phone: member.phone,
-    address: member.address,
-    aliases: member.aliases,
-    ai_context: member.aiContext,
-    father_id: member.fatherId,
-    mother_id: member.motherId,
-    spouse_id: member.spouseId,
+    first_name: member.firstName ?? null,
+    last_name: member.lastName ?? null,
+    gender: member.gender ?? null,
+    birth_date: member.birthDate ?? null,
+    birth_place: member.birthPlace ?? null,
+    is_deceased: member.isDeceased ?? false,
+    death_date: member.deathDate ?? null,
+    death_place: member.deathPlace ?? null,
+    occupation: member.occupation ?? null,
+    notes: member.notes ?? null,
+    avatar_color: member.avatarColor ?? null,
+    email: member.email ?? null,
+    phone: member.phone ?? null,
+    address: member.address ?? null,
+    aliases: member.aliases ?? null,
+    ai_context: member.aiContext ?? null,
+    father_id: member.fatherId ?? null,
+    mother_id: member.motherId ?? null,
+    spouse_id: member.spouseId ?? null,
   };
 }
 
 export function mapFromDb(row: any): FamilyMember {
   return {
     id: row.id,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    gender: row.gender,
-    birthDate: row.birth_date,
-    birthPlace: row.birth_place,
-    isDeceased: row.is_deceased,
-    deathDate: row.death_date,
-    deathPlace: row.death_place,
-    occupation: row.occupation,
-    notes: row.notes,
-    avatarColor: row.avatar_color,
-    email: row.email,
-    phone: row.phone,
-    address: row.address,
-    aliases: row.aliases,
-    aiContext: row.ai_context,
-    fatherId: row.father_id,
-    motherId: row.mother_id,
-    spouseId: row.spouse_id,
+    firstName: row.first_name || '',
+    lastName: row.last_name || undefined,
+    gender: row.gender || 'other',
+    birthDate: row.birth_date || undefined,
+    birthPlace: row.birth_place || undefined,
+    isDeceased: row.is_deceased || false,
+    deathDate: row.death_date || undefined,
+    deathPlace: row.death_place || undefined,
+    occupation: row.occupation || undefined,
+    notes: row.notes || undefined,
+    avatarColor: row.avatar_color || 'bg-slate-200 text-slate-700',
+    email: row.email || undefined,
+    phone: row.phone || undefined,
+    address: row.address || undefined,
+    aliases: row.aliases || undefined,
+    aiContext: row.ai_context || undefined,
+    fatherId: row.father_id || undefined,
+    motherId: row.mother_id || undefined,
+    spouseId: row.spouse_id || undefined,
   };
 }

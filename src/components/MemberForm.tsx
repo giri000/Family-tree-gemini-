@@ -132,7 +132,7 @@ export function MemberForm({
     }
 
     const savedMember: FamilyMember = {
-      id: member?.id || `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: member?.id || crypto.randomUUID(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       gender,

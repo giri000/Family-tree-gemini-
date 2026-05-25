@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ShieldAlert,
   Sparkles,
-  BookOpen
+  BookOpen,
+  AlertTriangle
 } from 'lucide-react';
 
 import { supabase, mapToDb, mapFromDb, isSupabaseConfigured } from './lib/supabase';
@@ -28,6 +29,7 @@ import { SupabaseSetup } from './components/SupabaseSetup';
 
 export default function App() {
   const isConfigured = isSupabaseConfigured();
+  const [dbStatus, setDbStatus] = useState<string | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [focusMemberId, setFocusMemberId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<ActiveTab | 'database'>('tree');
@@ -52,19 +54,61 @@ export default function App() {
 
     const fetchMembers = async () => {
       const { data, error } = await supabase.from('family_members').select('*');
+      if (error) {
+        console.error('Supabase fetch error:', error);
+        setDbStatus(`DB_ERROR: ${error.message}`);
+        return;
+      }
       if (data) {
         const parsed = data.map(mapFromDb);
         setMembers(parsed);
         setFocusMemberId(prev => {
           if (!prev && parsed.length > 0) {
-            return parsed.find(m => m.id === 'focus-thomas')?.id || parsed[0].id;
+            return parsed.find(m => m.id === '11111111-1111-4111-a111-111111111118')?.id || parsed[0].id;
           }
           return prev;
         });
       }
     };
 
-    fetchMembers();
+    const initDb = async () => {
+       try {
+         const { error: selectError } = await supabase.from('family_members').select('id').limit(1);
+         if (selectError) {
+            if (selectError.code === '42P01' || selectError.message?.includes('does not exist')) {
+                setDbStatus('TABLE_MISSING');
+            } else if (selectError.code === '42501' || selectError.message?.includes('security')) {
+                setDbStatus('RLS_BLOCKED');
+            } else {
+                setDbStatus(`DB_ERROR: ${selectError.message || selectError.code}`);
+            }
+            return;
+         }
+
+         const { error: rlsError } = await supabase
+              .from('family_members')
+              .upsert({ id: '00000000-0000-0000-0000-000000000000', first_name: 'test' })
+              .select();
+
+         if (rlsError) {
+             if (rlsError.code === '42501' || rlsError.message?.includes('security')) {
+                  setDbStatus('RLS_BLOCKED');
+             } else {
+                  setDbStatus(`DB_ERROR: ${rlsError.message || rlsError.code}`);
+             }
+             return;
+         }
+
+         await supabase.from('family_members').delete().eq('id', '00000000-0000-0000-0000-000000000000');
+         setDbStatus('OK');
+         fetchMembers();
+
+       } catch (err: any) {
+         setDbStatus(`DB_ERROR: ${err.message || 'Unknown catch error'}`);
+       }
+    };
+
+    initDb();
 
     const channel = supabase.channel('schema-db-changes')
       .on(
@@ -131,7 +175,17 @@ export default function App() {
     setPrefilledRelations(undefined);
 
     // Push to Supabase asynchronously
-    await supabase.from('family_members').upsert(updatables);
+    try {
+      // Adding .select() guarantees that if RLS is active and blocks the write, it will throw an error immediately here.
+      const { error } = await supabase.from('family_members').upsert(updatables).select();
+      if (error) {
+        console.error('Supabase upsert error:', error);
+        setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
+      }
+    } catch (err: any) {
+      console.error('Supabase client error:', err);
+      setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
+    }
   };
 
   // 5. Async Supabase Delete
@@ -156,19 +210,24 @@ export default function App() {
 
     setMembers(updatedMembers);
 
-    await supabase.from('family_members').delete().eq('id', id);
+    try {
+      await supabase.from('family_members').delete().eq('id', id);
 
-    // Clean up references in other members
-    const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
-      let patch = { ...m };
-      if (patch.fatherId === id) patch.fatherId = undefined;
-      if (patch.motherId === id) patch.motherId = undefined;
-      if (patch.spouseId === id) patch.spouseId = undefined;
-      return mapToDb(patch);
-    });
+      // Clean up references in other members
+      const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
+        let patch = { ...m };
+        if (patch.fatherId === id) patch.fatherId = undefined;
+        if (patch.motherId === id) patch.motherId = undefined;
+        if (patch.spouseId === id) patch.spouseId = undefined;
+        return mapToDb(patch);
+      });
 
-    if (updatables.length > 0) {
-      await supabase.from('family_members').upsert(updatables);
+      if (updatables.length > 0) {
+        await supabase.from('family_members').upsert(updatables);
+      }
+    } catch (err: any) {
+      console.error('Delete error', err);
+      setDbStatus(`DB_ERROR: ${err.message}`);
     }
   };
 
@@ -237,6 +296,106 @@ export default function App() {
 
   return (
     <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 flex flex-col font-sans antialiased">
+      {dbStatus && dbStatus !== 'OK' && (
+        <div className="bg-amber-600 text-white p-4 text-sm font-medium z-50 flex flex-col gap-2 relative shadow-lg">
+           {dbStatus === 'TABLE_MISSING' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-lg pb-1">
+                <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+                <h2>Database Table Missing</h2>
+              </div>
+              <div className="bg-amber-950 p-4 rounded-xl font-mono text-xs overflow-x-auto text-amber-200 shadow-inner">
+                <p className="opacity-90 mb-3">Run the following SQL in your Supabase SQL Editor to create the required table:</p>
+                <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 whitespace-pre">
+{`-- 1. Drop the problematic RLS auto-enable trigger (if it exists)
+DROP EVENT TRIGGER IF EXISTS ensure_rls;
+DROP FUNCTION IF EXISTS public.rls_auto_enable() CASCADE;
+
+-- 2. Drop the table if it already exists to start fresh
+DROP TABLE IF EXISTS public.family_members CASCADE;
+
+-- 3. Create the table (No trailing commas)
+CREATE TABLE public.family_members (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  first_name text NOT NULL,
+  last_name text,
+  gender text DEFAULT 'other',
+  birth_date date,
+  birth_place text,
+  is_deceased boolean DEFAULT false,
+  death_date date,
+  death_place text,
+  occupation text,
+  notes text,
+  avatar_color text DEFAULT 'bg-slate-200 text-slate-700',
+  email text,
+  phone text,
+  address text,
+  aliases text,
+  ai_context text,
+  father_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
+  mother_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
+  spouse_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+-- 4. Enable RLS but create a policy to allow all access (since there is no auth yet)
+ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable full access for all users" ON public.family_members FOR ALL USING (true) WITH CHECK (true);`}
+                </pre>
+              </div>
+            </div>
+           )}
+
+           {dbStatus === 'RLS_BLOCKED' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <p>Database Write Blocked by RLS</p>
+              </div>
+              <div className="bg-amber-950 p-4 rounded-xl mt-2 font-mono text-xs overflow-x-auto text-amber-200 shadow-inner">
+                 <p className="opacity-90">Your Supabase Table was created with Row Level Security (RLS) enabled by default.</p>
+                 <br/>
+                 <p className="opacity-90">-- Please run this exact command in your Supabase SQL Editor to allow writes:</p>
+                 <br/>
+                 <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 font-bold whitespace-pre">
+ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
+                 </pre>
+              </div>
+            </div>
+          )}
+          {dbStatus.startsWith('DB_ERROR:') && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                  <p className="font-bold">Database Connection / Configuration Error</p>
+                </div>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1 bg-amber-800 hover:bg-amber-700 rounded text-xs font-semibold"
+                >
+                  Retry Connection
+                </button>
+              </div>
+              <div className="bg-amber-950 p-4 rounded-xl mt-2 font-mono text-xs overflow-x-auto text-amber-200 shadow-inner space-y-2">
+                <p>The application could not connect to Supabase properly or encountered an unexpected error.</p>
+                <p><strong>Common Causes:</strong></p>
+                <ul className="list-disc pl-4 opacity-90 space-y-1">
+                  <li>Invalid <code className="bg-amber-900 px-1 rounded text-amber-100">VITE_SUPABASE_URL</code> (should be like https://xy....supabase.co)</li>
+                  <li>Invalid <code className="bg-amber-900 px-1 rounded text-amber-100">VITE_SUPABASE_ANON_KEY</code> (make sure it's the <strong>anon public</strong> key, not the service_role key)</li>
+                  <li>Copy-paste errors (trailing spaces, missing characters)</li>
+                </ul>
+                <div className="mt-4 pt-4 border-t border-amber-900/50">
+                  <p className="text-[10px] uppercase text-amber-500 font-bold mb-1">Developer Error Details:</p>
+                  <p className="whitespace-pre-wrap">{dbStatus.substring(9)}</p>
+                </div>
+              </div>
+            </div>
+           )}
+        </div>
+      )}
+
       {/* Editorial Navigation Header */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -357,8 +516,19 @@ export default function App() {
                 id="btn-load-sample-empty"
                 onClick={async () => {
                   const mapped = SAMPLE_FAMILY.map(mapToDb);
-                  await supabase.from('family_members').upsert(mapped);
-                  setFocusMemberId('focus-thomas');
+                  try {
+                    const { error } = await supabase.from('family_members').upsert(mapped).select();
+                    if (error) {
+                       console.error('Supabase load sample error:', error);
+                       setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
+                       return;
+                    }
+                    setMembers(SAMPLE_FAMILY);
+                    setFocusMemberId('11111111-1111-4111-a111-111111111118');
+                  } catch (err: any) {
+                    console.error('Client error loading sample:', err);
+                    setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
+                  }
                 }}
                 className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-sm"
               >
@@ -639,25 +809,51 @@ export default function App() {
                   members={members}
                   onImport={async (importedMembers) => {
                     if (importedMembers.length > 0) {
-                      const mapped = importedMembers.map(mapToDb);
-                      await supabase.from('family_members').upsert(mapped);
-                      setFocusMemberId(importedMembers[0].id);
-                      setActiveTab('tree');
+                      try {
+                        const mapped = importedMembers.map(mapToDb);
+                        const { error } = await supabase.from('family_members').upsert(mapped).select();
+                        if (error) {
+                           console.error('Import error', error);
+                           setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
+                           return;
+                        }
+                        setFocusMemberId(importedMembers[0].id);
+                        setActiveTab('tree');
+                      } catch (err: any) {
+                        console.error('import catch', err);
+                        setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
+                      }
                     }
                   }}
                   onClearDatabase={async () => {
                     // Wipe all entries from Supabase gracefully by ids
                     if (members.length > 0) {
-                       setMembers([]);
-                       const ids = members.map(m => m.id);
-                       await supabase.from('family_members').delete().in('id', ids);
+                       try {
+                         setMembers([]);
+                         const ids = members.map(m => m.id);
+                         const { error } = await supabase.from('family_members').delete().in('id', ids);
+                         if (error) {
+                           setDbStatus(`DB_ERROR: ${error.message}`);
+                         }
+                       } catch (err: any) {
+                           setDbStatus(`DB_ERROR: ${err.message}`);
+                       }
                     }
                   }}
                   onResetSampleData={async () => {
                     const mapped = SAMPLE_FAMILY.map(mapToDb);
                     setMembers(SAMPLE_FAMILY);
-                    await supabase.from('family_members').upsert(mapped);
-                    setFocusMemberId('focus-thomas');
+                    try {
+                      const { error } = await supabase.from('family_members').upsert(mapped).select();
+                      if (error) {
+                        console.error('Supabase load sample error:', error);
+                        setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
+                      }
+                    } catch (err: any) {
+                      console.error('Client error loading sample:', err);
+                      setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
+                    }
+                    setFocusMemberId('11111111-1111-4111-a111-111111111118');
                     setActiveTab('tree');
                   }}
                 />
