@@ -21,11 +21,15 @@ import {
   ShieldAlert,
   Sparkles,
   BookOpen,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 
 import { supabase, mapToDb, mapFromDb, isSupabaseConfigured } from './lib/supabase';
 import { SupabaseSetup } from './components/SupabaseSetup';
+
+import { AuthGuard } from './components/AuthGuard';
+import { ThemeToggle } from './components/ThemeToggle';
 
 export default function App() {
   const isConfigured = isSupabaseConfigured();
@@ -295,7 +299,8 @@ export default function App() {
   });
 
   return (
-    <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 flex flex-col font-sans antialiased">
+    <AuthGuard userEmailToLock="giriprasath51@gmail.com">
+      <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col font-sans antialiased">
       {dbStatus && dbStatus !== 'OK' && (
         <div className="bg-amber-600 text-white p-4 text-sm font-medium z-50 flex flex-col gap-2 relative shadow-lg">
            {dbStatus === 'TABLE_MISSING' && (
@@ -339,9 +344,24 @@ CREATE TABLE public.family_members (
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 4. Enable RLS but create a policy to allow all access (since there is no auth yet)
+-- 4. Enable RLS and create policies for authenticated users
 ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable full access for all users" ON public.family_members FOR ALL USING (true) WITH CHECK (true);`}
+
+CREATE POLICY "Allow authenticated users to read" 
+ON public.family_members FOR SELECT 
+TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated users to insert" 
+ON public.family_members FOR INSERT 
+TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update" 
+ON public.family_members FOR UPDATE 
+TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to delete" 
+ON public.family_members FOR DELETE 
+TO authenticated USING (true);`}
                 </pre>
               </div>
             </div>
@@ -354,12 +374,17 @@ CREATE POLICY "Enable full access for all users" ON public.family_members FOR AL
                 <p>Database Write Blocked by RLS</p>
               </div>
               <div className="bg-amber-950 p-4 rounded-xl mt-2 font-mono text-xs overflow-x-auto text-amber-200 shadow-inner">
-                 <p className="opacity-90">Your Supabase Table was created with Row Level Security (RLS) enabled by default.</p>
+                 <p className="opacity-90">Your Supabase Table works best with authenticated Row Level Security (RLS) policies.</p>
                  <br/>
-                 <p className="opacity-90">-- Please run this exact command in your Supabase SQL Editor to allow writes:</p>
+                 <p className="opacity-90">-- Please run this exact command in your Supabase SQL Editor to allow authenticated owner reads & writes:</p>
                  <br/>
-                 <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 font-bold whitespace-pre">
-ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
+                 <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 font-bold whitespace-pre mt-2 text-xs leading-relaxed">
+{`ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users to read" ON public.family_members FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated users to insert" ON public.family_members FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated users to update" ON public.family_members FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR DELETE TO authenticated USING (true);`}
                  </pre>
               </div>
             </div>
@@ -397,101 +422,112 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
       )}
 
       {/* Editorial Navigation Header */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
           
           {/* Brand Logo & Heirloom styling */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
               <BookOpen className="w-5 h-5" />
             </div>
             <div className="text-center sm:text-left">
-              <h1 className="text-base font-bold font-serif text-slate-800 flex items-center gap-1.5 justify-center sm:justify-start">
+              <h1 className="text-base font-bold font-serif text-slate-800 dark:text-slate-100 flex items-center gap-1.5 justify-center sm:justify-start">
                 Lineage Archives
-                <span className="text-[10px] uppercase font-sans font-extrabold text-indigo-650 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md tracking-wider">
+                <span className="text-[10px] uppercase font-sans font-extrabold text-indigo-650 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-100 dark:border-indigo-800 px-1.5 py-0.5 rounded-md tracking-wider">
                   Personal Vault
                 </span>
               </h1>
-              <p className="text-[10px] text-slate-400 font-medium">Digital Family Record, Milestones & Connections</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Digital Family Record, Milestones & Connections</p>
             </div>
           </div>
 
           {/* Tab Selection */}
-          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600">
-            <button
-              id="tab-btn-tree"
-              onClick={() => setActiveTab('tree')}
-              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'tree'
-                  ? 'bg-white shadow-xs text-indigo-700'
-                  : 'hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <GitFork className="w-3.5 h-3.5 rotate-90" />
-              <span>Interactive Tree</span>
-            </button>
-            <button
-              id="tab-btn-members"
-              onClick={() => setActiveTab('members')}
-              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'members'
-                  ? 'bg-white shadow-xs text-indigo-700'
-                  : 'hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Member Gallery</span>
-            </button>
-            <button
-              id="tab-btn-timeline"
-              onClick={() => setActiveTab('timeline')}
-              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'timeline'
-                  ? 'bg-white shadow-xs text-indigo-700'
-                  : 'hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Timeline</span>
-            </button>
-            <button
-              id="tab-btn-stats"
-              onClick={() => setActiveTab('stats')}
-              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'stats'
-                  ? 'bg-white shadow-xs text-indigo-700'
-                  : 'hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <BarChart className="w-3.5 h-3.5" />
-              <span>Diagnostics</span>
-            </button>
-            <button
-              id="tab-btn-database"
-              onClick={() => setActiveTab('database')}
-              className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'database'
-                  ? 'bg-white shadow-xs text-indigo-700'
-                  : 'hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>Backups</span>
-            </button>
-          </nav>
+          <div className="w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
+            <nav className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 w-max sm:w-auto mx-auto sm:mx-0 transition-colors">
+              <button
+                id="tab-btn-tree"
+                onClick={() => setActiveTab('tree')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'tree'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <GitFork className="w-3.5 h-3.5 rotate-90" />
+                <span>Interactive Tree</span>
+              </button>
+              <button
+                id="tab-btn-members"
+                onClick={() => setActiveTab('members')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'members'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Member Gallery</span>
+              </button>
+              <button
+                id="tab-btn-timeline"
+                onClick={() => setActiveTab('timeline')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'timeline'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Timeline</span>
+              </button>
+              <button
+                id="tab-btn-stats"
+                onClick={() => setActiveTab('stats')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'stats'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <BarChart className="w-3.5 h-3.5" />
+                <span>Diagnostics</span>
+              </button>
+              <button
+                id="tab-btn-database"
+                onClick={() => setActiveTab('database')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'database'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Backups</span>
+              </button>
+            </nav>
+          </div>
 
-          {/* Action trigger: Add Member */}
-          <button
-            id="btn-global-add-member"
-            onClick={() => {
-              setEditingMember(null);
-              setPrefilledRelations(undefined);
-              setShowForm(true);
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
-          >
-            <Plus className="w-4 h-4" /> Add Family member
-          </button>
+          {/* Header Actions */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-800/40 border border-rose-100 dark:border-rose-800/50 hover:border-rose-200 dark:hover:border-rose-700 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+            >
+              <LogOut className="w-4 h-4" /> Lock Vault
+            </button>
+            <button
+              id="btn-global-add-member"
+              onClick={() => {
+                setEditingMember(null);
+                setPrefilledRelations(undefined);
+                setShowForm(true);
+              }}
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+            >
+              <Plus className="w-4 h-4" /> Add Family member
+            </button>
+          </div>
         </div>
       </header>
 
@@ -501,13 +537,13 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
         {/* Dynamic content rendering */}
         {members.length === 0 ? (
           /* Empty database prompt */
-          <div className="max-w-md mx-auto text-center py-16 px-6 bg-white border border-slate-200 rounded-3xl shadow-sm space-y-4 animate-fade-in mt-12">
-            <div className="w-16 h-16 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center mx-auto text-rose-500">
+          <div className="max-w-md mx-auto text-center py-16 px-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm space-y-4 animate-fade-in mt-12 transition-colors">
+            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-800/50 rounded-2xl flex items-center justify-center mx-auto text-rose-500 dark:text-rose-400">
               <ShieldAlert className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-lg font-serif font-semibold text-slate-800">Archive Vault is Blank</h3>
-              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+              <h3 className="text-lg font-serif font-semibold text-slate-800 dark:text-slate-100">Archive Vault is Blank</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">
                 You currently have no registered family members inside your local database. You can start fresh or quickly populate the system with a complete pre-configured sample lineage to see it in action.
               </p>
             </div>
@@ -530,9 +566,9 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                     setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
                   }
                 }}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-sm"
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 cursor-pointer shadow-sm transition-colors"
               >
-                <Sparkles className="w-4 h-4 text-indigo-250" /> Load 3-Gen Sample Family Tree
+                <Sparkles className="w-4 h-4 text-indigo-250 dark:text-indigo-200" /> Load 3-Gen Sample Family Tree
               </button>
               <button
                 id="btn-add-initial-member"
@@ -541,7 +577,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                   setPrefilledRelations(undefined);
                   setShowForm(true);
                 }}
-                className="w-full px-4 py-2.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                className="w-full px-4 py-2.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Create New Member Record from Scratch
               </button>
@@ -555,23 +591,23 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                 {/* Visualizer header controls */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b pb-4 mb-4">
                   <div>
-                    <h2 className="text-xl font-serif font-bold text-slate-800">
+                    <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">
                       Visual Connections Tree
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Currently centring relationships around{' '}
-                      <span className="font-bold text-indigo-750">{currentFocusMember.firstName} {currentFocusMember.lastName}</span>
+                      <span className="font-bold text-indigo-750 dark:text-indigo-400">{currentFocusMember.firstName} {currentFocusMember.lastName}</span>
                     </p>
                   </div>
 
                   {/* Dropdown to change focus member */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500">Tree Center Focus:</span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Tree Center Focus:</span>
                     <select
                       id="select-tree-focus-member"
                       value={focusMemberId}
                       onChange={(e) => setFocusMemberId(e.target.value)}
-                      className="text-xs font-semibold text-slate-700 bg-white border border-slate-250 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                      className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors"
                     >
                       {members
                         .sort((a, b) => a.firstName.localeCompare(b.firstName))
@@ -602,28 +638,28 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
             {activeTab === 'members' && (
               <div className="space-y-6">
                 {/* Search / Filters Interface */}
-                <div className="bg-white border rounded-2xl p-5 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between transition-colors">
                   <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
                     <input
                       id="input-directory-search"
                       type="text"
                       placeholder="Search name, notes, job..."
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                      className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 placeholder-slate-400 dark:placeholder-slate-500 transition-colors"
                     />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3.5 w-full md:w-auto">
                     {/* Filter Gender */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-slate-500">Gender:</span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Gender:</span>
                       <select
                         id="select-filter-gender"
                         value={genderFilter}
                         onChange={(e) => setGenderFilter(e.target.value)}
-                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 cursor-pointer"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
                       >
                         <option value="all">All Genders</option>
                         <option value="male">Male</option>
@@ -634,12 +670,12 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
 
                     {/* Filter Survival */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-slate-500">Status:</span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status:</span>
                       <select
                         id="select-filter-status"
                         value={lifespanFilter}
                         onChange={(e) => setLifespanFilter(e.target.value)}
-                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 cursor-pointer"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
                       >
                         <option value="all">All Records</option>
                         <option value="living">Living Only</option>
@@ -656,10 +692,10 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
 
                 {/* Grid List */}
                 {filteredDirectoryMembers.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-dashed rounded-2xl">
-                    <Search className="w-8 h-8 text-slate-350 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-slate-500">No family member matched your current parameters.</p>
-                    <p className="text-xs text-slate-400 mt-1">Try emptying your keyword filters or adding a new member profile.</p>
+                  <div className="text-center py-16 bg-white dark:bg-slate-900 border border-dashed dark:border-slate-800 rounded-2xl transition-colors">
+                    <Search className="w-8 h-8 text-slate-350 dark:text-slate-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No family member matched your current parameters.</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try emptying your keyword filters or adding a new member profile.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -677,7 +713,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                         <div
                           key={member.id}
                           id={`directory-card-${member.id}`}
-                          className="bg-white border hover:border-slate-300 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:shadow-xs transition-all relative overflow-hidden"
+                          className="bg-white dark:bg-slate-800 border dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:shadow-xs transition-all relative overflow-hidden"
                         >
                           <div className="space-y-3">
                             {/* Profile Badge row */}
@@ -688,44 +724,44 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                               
                               <div className="flex flex-col items-end gap-1">
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold capitalize ${
-                                  member.gender === 'male' ? 'bg-blue-50 text-blue-700' : member.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-slate-100 text-slate-750'
+                                  member.gender === 'male' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : member.gender === 'female' ? 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-750 dark:text-slate-300'
                                 }`}>
                                   {member.gender}
                                 </span>
                                 {member.isDeceased ? (
-                                  <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Passed</span>
+                                  <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-1.5 py-0.5 rounded">Passed</span>
                                 ) : (
-                                  <span className="text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Age {age}</span>
+                                  <span className="text-[9px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">Age {age}</span>
                                 )}
                               </div>
                             </div>
 
                             {/* Core info labels */}
                             <div>
-                              <h4 className="text-sm font-bold text-slate-800 line-clamp-1">
+                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">
                                 {member.firstName} {member.lastName}
                               </h4>
                               {member.birthDate && (
-                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
                                   {new Date(member.birthDate).getFullYear()} – {member.isDeceased ? (member.deathDate ? new Date(member.deathDate).getFullYear() : 'Deceased') : 'Present'}
                                 </p>
                               )}
                             </div>
 
                             {/* Short bio and lineage parents summary */}
-                            <div className="space-y-1 text-slate-500 text-xs">
+                            <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
                               {member.occupation && (
-                                <p className="text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                                <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
                                   💼 {member.occupation}
                                 </p>
                               )}
                               {parentNames.length > 0 && (
-                                <p className="text-[10px] text-slate-400 truncate">
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
                                   👪 Child of {parentNames.join(' & ')}
                                 </p>
                               )}
                               {member.notes && (
-                                <p className="text-[10px] italic text-slate-400 line-clamp-2 mt-1">
+                                <p className="text-[10px] italic text-slate-400 dark:text-slate-500 line-clamp-2 mt-1">
                                   "{member.notes}"
                                 </p>
                               )}
@@ -733,7 +769,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                           </div>
 
                           {/* Quick tool row */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100">
+                          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700">
                             <button
                               id={`dir-edit-btn-${member.id}`}
                               onClick={() => {
@@ -741,7 +777,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                                 setPrefilledRelations(undefined);
                                 setShowForm(true);
                               }}
-                              className="text-[10px] font-semibold text-center hover:bg-slate-50 border border-slate-200 rounded-lg py-1 hover:text-slate-700 text-slate-600 cursor-pointer transition-colors"
+                              className="text-[10px] font-semibold text-center hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg py-1 hover:text-slate-700 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400 cursor-pointer transition-colors"
                             >
                               Edit Profile
                             </button>
@@ -751,7 +787,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
                                 setFocusMemberId(member.id);
                                 setActiveTab('tree');
                               }}
-                              className="text-[10px] font-semibold text-center text-indigo-650 bg-indigo-50 hover:bg-indigo-100 rounded-lg py-1 cursor-pointer transition-colors"
+                              className="text-[10px] font-semibold text-center text-indigo-650 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/50 rounded-lg py-1 cursor-pointer transition-colors"
                             >
                               Center Tree
                             </button>
@@ -768,8 +804,8 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
             {activeTab === 'timeline' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-serif font-bold text-slate-800">Family Chronicle & Milestones</h2>
-                  <p className="text-xs text-slate-500 mt-1">A combined chronological perspective of birth and passing records of generations.</p>
+                  <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">Family Chronicle & Milestones</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">A combined chronological perspective of birth and passing records of generations.</p>
                 </div>
                 <FamilyTimeline 
                   members={members} 
@@ -785,8 +821,8 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
             {activeTab === 'stats' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-serif font-bold text-slate-800">Diagnostics & Statistics</h2>
-                  <p className="text-xs text-slate-500 mt-1">A strategic overview of line-length preservation, demographics, longevity diagnostics, and calendar celebrations.</p>
+                  <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">Diagnostics & Statistics</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">A strategic overview of line-length preservation, demographics, longevity diagnostics, and calendar celebrations.</p>
                 </div>
                 <StatsDashboard
                   members={members}
@@ -802,8 +838,8 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
             {activeTab === 'database' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-serif font-bold text-slate-800">Lineage Backups Panel</h2>
-                  <p className="text-xs text-slate-500 mt-1">Manage database records, wipe cookies or local files, restore presets, or retrieve JSON archives.</p>
+                  <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">Lineage Backups Panel</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage database records, wipe cookies or local files, restore presets, or retrieve JSON archives.</p>
                 </div>
                 <DatabaseControls
                   members={members}
@@ -878,12 +914,7 @@ ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
           prefilledRelations={prefilledRelations}
         />
       )}
-
-      {/* Minimalistic heirloom footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-12 font-sans select-none">
-        <p className="font-serif">Lineage Editor Vault © 2026. Handcrafted for private preservation. No analytics tracked.</p>
-        <p className="text-[10px] text-slate-300 font-mono mt-1">Data Layer: Supabase Realtime PgSQL</p>
-      </footer>
     </div>
+    </AuthGuard>
   );
 }

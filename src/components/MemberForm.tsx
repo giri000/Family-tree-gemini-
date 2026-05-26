@@ -61,6 +61,7 @@ export function MemberForm({
   const [address, setAddress] = useState('');
   const [aliases, setAliases] = useState('');
   const [aiContext, setAiContext] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   // Hydrate form on member loaded or pre-filled relation update
   useEffect(() => {
@@ -158,8 +159,8 @@ export function MemberForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs sm:p-4 overflow-y-auto animate-fade-in">
+      <div className="bg-white sm:rounded-2xl shadow-xl sm:border border-slate-100 max-w-2xl w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
           <div>
@@ -482,30 +483,48 @@ export function MemberForm({
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-          <div>
+        <div className="flex items-start sm:items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50 flex-col sm:flex-row gap-4">
+          <div className="w-full sm:w-auto">
             {isEditing && onDelete && (
-              <button
-                id="btn-delete-member"
-                type="button"
-                onClick={() => {
-                  if (confirm(`Are you sure you want to completely remove ${member.firstName} from the family tree? This will break associated relationship links for parents or spouses.`)) {
-                    onDelete(member.id);
-                  }
-                }}
-                className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-800 px-3 py-2 rounded-lg hover:bg-rose-50 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Record
-              </button>
+              showConfirmDelete ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-1 rounded">Are you sure? This action cannot be undone.</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(member.id)}
+                      className="text-white bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors w-full sm:w-auto"
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmDelete(false)}
+                      className="text-slate-600 bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors w-full sm:w-auto"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  id="btn-delete-member"
+                  type="button"
+                  onClick={() => setShowConfirmDelete(true)}
+                  className="flex items-center justify-center sm:justify-start gap-1 text-xs font-semibold text-rose-600 hover:text-rose-800 px-3 py-2 rounded-lg hover:bg-rose-50 cursor-pointer w-full sm:w-auto"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Record
+                </button>
+              )
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto font-semibold">
             <button
               id="btn-cancel-form"
               type="button"
               onClick={onClose}
-              className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+              className="flex-1 sm:flex-none text-center text-xs text-slate-500 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 cursor-pointer"
             >
               Cancel
             </button>
