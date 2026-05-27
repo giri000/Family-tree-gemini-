@@ -97,50 +97,50 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
       {/* Grid count cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Generation Counter */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Kinship</span>
-            <h3 className="text-2xl font-bold font-mono text-slate-800">{totalCount} members</h3>
-            <p className="text-[10px] text-slate-400 font-medium">Recorded in memory file</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Kinship</span>
+            <h3 className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-100">{totalCount} members</h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Recorded in memory file</p>
           </div>
         </div>
 
         {/* Card 2: Living/Deceased */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
             <UserCheck className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Survival Ratio</span>
-            <h3 className="text-2xl font-bold font-mono text-slate-800">{livingCount} active</h3>
-            <p className="text-[10px] text-slate-400 font-medium">{deceasedCount} departed ancestors</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Survival Ratio</span>
+            <h3 className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-100">{livingCount} active</h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{deceasedCount} departed ancestors</p>
           </div>
         </div>
 
         {/* Card 3: Avg Lifespan */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-amber-50 border border-amber-100 text-amber-600 rounded-xl">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 rounded-xl">
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Deceased Longevity</span>
-            <h3 className="text-2xl font-bold font-mono text-slate-800">{averageLifespanDeceased || '?'} yrs</h3>
-            <p className="text-[10px] text-slate-400 font-medium">Average mortality age</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Deceased Longevity</span>
+            <h3 className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-100">{averageLifespanDeceased || '?'} yrs</h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Average mortality age</p>
           </div>
         </div>
 
         {/* Card 4: Avg Living Age */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-cyan-50 border border-cyan-100 text-cyan-600 rounded-xl">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-100 dark:border-cyan-800/50 text-cyan-600 dark:text-cyan-400 rounded-xl">
             <BarChart className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Living Proximity</span>
-            <h3 className="text-2xl font-bold font-mono text-slate-800">{averageAgeLiving || '?'} yrs</h3>
-            <p className="text-[10px] text-slate-400 font-medium">Average age of active kin</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Living Proximity</span>
+            <h3 className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-100">{averageAgeLiving || '?'} yrs</h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Average age of active kin</p>
           </div>
         </div>
       </div>
@@ -148,19 +148,19 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Column 1: Gender Distribution Chart using pure Tailwind elements */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs space-y-5 lg:col-span-1">
-          <h4 className="text-sm font-semibold text-slate-800 font-serif border-b pb-2">Gender Demographics</h4>
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-5 lg:col-span-1">
+          <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Gender Demographics</h4>
           
           <div className="space-y-4">
             {/* Male */}
             <div>
               <div className="flex justify-between text-xs mb-1 font-medium">
-                <span className="text-blue-700 font-semibold">Male ({maleCount})</span>
-                <span className="font-mono text-slate-500">{totalCount > 0 ? Math.round((maleCount / totalCount) * 100) : 0}%</span>
+                <span className="text-blue-700 dark:text-blue-400 font-semibold">Male ({maleCount})</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400">{totalCount > 0 ? Math.round((maleCount / totalCount) * 100) : 0}%</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
+                  className="bg-blue-500 dark:bg-blue-400 h-2.5 rounded-full transition-all duration-500"
                   style={{ width: `${totalCount > 0 ? (maleCount / totalCount) * 105 : 0}%` }}
                 />
               </div>
@@ -169,12 +169,12 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
             {/* Female */}
             <div>
               <div className="flex justify-between text-xs mb-1 font-medium">
-                <span className="text-pink-700 font-semibold">Female ({femaleCount})</span>
-                <span className="font-mono text-slate-500">{totalCount > 0 ? Math.round((femaleCount / totalCount) * 100) : 0}%</span>
+                <span className="text-pink-700 dark:text-pink-400 font-semibold">Female ({femaleCount})</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400">{totalCount > 0 ? Math.round((femaleCount / totalCount) * 100) : 0}%</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className="bg-pink-500 h-2.5 rounded-full transition-all duration-500"
+                  className="bg-pink-500 dark:bg-pink-400 h-2.5 rounded-full transition-all duration-500"
                   style={{ width: `${totalCount > 0 ? (femaleCount / totalCount) * 105 : 0}%` }}
                 />
               </div>
@@ -184,12 +184,12 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
             {otherCount > 0 && (
               <div>
                 <div className="flex justify-between text-xs mb-1 font-medium">
-                  <span className="text-slate-700 font-semibold">Other ({otherCount})</span>
-                  <span className="font-mono text-slate-400">{Math.round((otherCount / totalCount) * 100)}%</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-semibold">Other ({otherCount})</span>
+                  <span className="font-mono text-slate-400 dark:text-slate-500">{Math.round((otherCount / totalCount) * 100)}%</span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                   <div
-                    className="bg-slate-400 h-2.5 rounded-full transition-all duration-500"
+                    className="bg-slate-400 dark:bg-slate-500 h-2.5 rounded-full transition-all duration-500"
                     style={{ width: `${(otherCount / totalCount) * 100}%` }}
                   />
                 </div>
@@ -198,39 +198,39 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
           </div>
 
           {/* Living vs Mortality Bar distribution */}
-          <div className="border-t pt-4 space-y-2 mt-4">
+          <div className="border-t dark:border-slate-800 pt-4 space-y-2 mt-4">
             <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lineage Preservation</h5>
-            <div className="flex w-full h-3 rounded-full overflow-hidden bg-slate-150">
+            <div className="flex w-full h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
               <div
-                className="bg-emerald-500 h-3"
+                className="bg-emerald-500 dark:bg-emerald-400 h-3"
                 title={`${livingCount} living`}
                 style={{ width: `${totalCount > 0 ? (livingCount / totalCount) * 100 : 0}%` }}
               />
               <div
-                className="bg-slate-400 h-3"
+                className="bg-slate-400 dark:bg-slate-500 h-3"
                 title={`${deceasedCount} deceased`}
                 style={{ width: `${totalCount > 0 ? (deceasedCount / totalCount) * 100 : 0}%` }}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-              <span className="text-emerald-700">● Living: {livingCount}</span>
-              <span className="text-slate-600">● Deceased: {deceasedCount}</span>
+            <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+              <span className="text-emerald-700 dark:text-emerald-400">● Living: {livingCount}</span>
+              <span className="text-slate-600 dark:text-slate-400">● Deceased: {deceasedCount}</span>
             </div>
           </div>
         </div>
 
         {/* Column 2: Upcoming Birthdays List */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex flex-col lg:col-span-1">
-          <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <h4 className="text-sm font-semibold text-slate-800 font-serif">Upcoming Birthdays</h4>
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col lg:col-span-1">
+          <div className="flex items-center justify-between border-b dark:border-slate-800 pb-2 mb-4">
+            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif">Upcoming Birthdays</h4>
             <Gift className="w-4 h-4 text-rose-400" />
           </div>
 
           {upcomingBirthdays.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-150 py-10">
-              <Calendar className="w-6 h-6 text-slate-300 mb-1" />
-              <p className="text-xs font-semibold text-slate-400">No birthdays mapped.</p>
-              <p className="text-[10px] text-slate-400">Edit member dates to construct calendar.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-10">
+              <Calendar className="w-6 h-6 text-slate-300 dark:text-slate-600 mb-1" />
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500">No birthdays mapped.</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Edit member dates to construct calendar.</p>
             </div>
           ) : (
             <div className="space-y-3.5 flex-1 overflow-y-auto max-h-72">
@@ -239,17 +239,17 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
                   key={member.id}
                   id={`bd-item-${member.id}`}
                   onClick={() => onFocusMember(member.id)}
-                  className="flex items-center justify-between p-2.5 bg-white border border-slate-100 hover:border-indigo-150 hover:bg-slate-50/50 rounded-xl cursor-pointer transition-all"
+                  className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-150 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-all"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${member.avatarColor}`}>
                       {member.firstName[0]}
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-850 hover:text-indigo-600 truncate max-w-[130px]">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 truncate max-w-[130px]">
                         {member.firstName} {member.lastName}
                       </p>
-                      <p className="text-[10px] text-indigo-600 font-mono font-medium">
+                      <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-medium">
                         Turning {nextAge} on {monthDay}
                       </p>
                     </div>
@@ -257,15 +257,15 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
                   
                   <div className="text-right">
                     {days === 0 ? (
-                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full uppercase animate-pulse">
+                      <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-800 px-2 py-0.5 rounded-full uppercase animate-pulse">
                         Today! 🎉
                       </span>
                     ) : days === 1 ? (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 px-2 py-0.5 rounded-full">
                         Tomorrow
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-mono">
+                      <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-mono">
                         In {days} days
                       </span>
                     )}
@@ -277,33 +277,33 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
         </div>
 
         {/* Column 3: Oldest Living Member Award Card */}
-        <div className="bg-white border rounded-2xl p-5 shadow-xs flex flex-col justify-between lg:col-span-1">
-          <div className="border-b pb-2 mb-4 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-slate-800 font-serif">Matriarch / Patriarch</h4>
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between lg:col-span-1">
+          <div className="border-b dark:border-slate-800 pb-2 mb-4 flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif">Matriarch / Patriarch</h4>
             <Award className="w-4 h-4 text-yellow-500" />
           </div>
 
           {oldestLiving ? (
-            <div className="p-4 bg-yellow-50/50 border border-yellow-100 rounded-2xl flex-1 flex flex-col justify-center text-center space-y-3">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto text-xl font-bold shadow-xs border-2 border-white bg-yellow-500 text-white">
+            <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-2xl flex-1 flex flex-col justify-center text-center space-y-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto text-xl font-bold shadow-xs border-2 border-white dark:border-slate-800 bg-yellow-500 text-white">
                 {oldestLiving.firstName[0]}{oldestLiving.lastName[0]}
               </div>
               
               <div>
-                <h5 className="text-sm font-serif font-bold text-slate-800">
+                <h5 className="text-sm font-serif font-bold text-slate-800 dark:text-slate-100">
                   {oldestLiving.firstName} {oldestLiving.lastName}
                 </h5>
-                <p className="text-[10px] font-mono text-yellow-800 font-bold uppercase tracking-wider mt-0.5">
+                <p className="text-[10px] font-mono text-yellow-800 dark:text-yellow-600 font-bold uppercase tracking-wider mt-0.5">
                   Age {getAgeOfLiving(oldestLiving.birthDate)} — Matriarch/Patriarch
                 </p>
               </div>
 
               {oldestLiving.notes ? (
-                <p className="text-xs text-slate-550 italic text-slate-500 line-clamp-3">
+                <p className="text-xs italic text-slate-500 dark:text-slate-400 line-clamp-3">
                   "{oldestLiving.notes}"
                 </p>
               ) : (
-                <p className="text-xs text-slate-400 italic">
+                <p className="text-xs text-slate-400 dark:text-slate-500 italic">
                   Living witness of the family legacy.
                 </p>
               )}
@@ -311,15 +311,15 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
               <button
                 id={`btn-visit-oldest-${oldestLiving.id}`}
                 onClick={() => onFocusMember(oldestLiving.id)}
-                className="text-[11px] font-bold text-yellow-700 hover:text-white bg-white hover:bg-yellow-600 border border-yellow-200 hover:border-yellow-600 rounded-lg py-1 px-3 self-center transition-all cursor-pointer"
+                className="text-[11px] font-bold text-yellow-700 dark:text-yellow-500 hover:text-white bg-white dark:bg-slate-800 hover:bg-yellow-600 dark:hover:bg-yellow-600 border border-yellow-200 dark:border-yellow-700 hover:border-yellow-600 rounded-lg py-1 px-3 self-center transition-all cursor-pointer"
               >
                 Center Tree Focus
               </button>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-150">
-              <Sparkles className="w-6 h-6 text-slate-300" />
-              <p className="text-xs font-semibold text-slate-400 mt-1">Heritage records empty.</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+              <Sparkles className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1">Heritage records empty.</p>
             </div>
           )}
         </div>

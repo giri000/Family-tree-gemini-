@@ -33,7 +33,6 @@ import { ThemeToggle } from './components/ThemeToggle';
 
 export default function App() {
   const isConfigured = isSupabaseConfigured();
-  const [dbStatus, setDbStatus] = useState<string | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [focusMemberId, setFocusMemberId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<ActiveTab | 'database'>('tree');
@@ -60,7 +59,6 @@ export default function App() {
       const { data, error } = await supabase.from('family_members').select('*');
       if (error) {
         console.error('Supabase fetch error:', error);
-        setDbStatus(`DB_ERROR: ${error.message}`);
         return;
       }
       if (data) {
@@ -75,44 +73,7 @@ export default function App() {
       }
     };
 
-    const initDb = async () => {
-       try {
-         const { error: selectError } = await supabase.from('family_members').select('id').limit(1);
-         if (selectError) {
-            if (selectError.code === '42P01' || selectError.message?.includes('does not exist')) {
-                setDbStatus('TABLE_MISSING');
-            } else if (selectError.code === '42501' || selectError.message?.includes('security')) {
-                setDbStatus('RLS_BLOCKED');
-            } else {
-                setDbStatus(`DB_ERROR: ${selectError.message || selectError.code}`);
-            }
-            return;
-         }
-
-         const { error: rlsError } = await supabase
-              .from('family_members')
-              .upsert({ id: '00000000-0000-0000-0000-000000000000', first_name: 'test' })
-              .select();
-
-         if (rlsError) {
-             if (rlsError.code === '42501' || rlsError.message?.includes('security')) {
-                  setDbStatus('RLS_BLOCKED');
-             } else {
-                  setDbStatus(`DB_ERROR: ${rlsError.message || rlsError.code}`);
-             }
-             return;
-         }
-
-         await supabase.from('family_members').delete().eq('id', '00000000-0000-0000-0000-000000000000');
-         setDbStatus('OK');
-         fetchMembers();
-
-       } catch (err: any) {
-         setDbStatus(`DB_ERROR: ${err.message || 'Unknown catch error'}`);
-       }
-    };
-
-    initDb();
+    fetchMembers();
 
     const channel = supabase.channel('schema-db-changes')
       .on(
@@ -184,11 +145,9 @@ export default function App() {
       const { error } = await supabase.from('family_members').upsert(updatables).select();
       if (error) {
         console.error('Supabase upsert error:', error);
-        setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
       }
     } catch (err: any) {
       console.error('Supabase client error:', err);
-      setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
     }
   };
 
@@ -231,7 +190,6 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Delete error', err);
-      setDbStatus(`DB_ERROR: ${err.message}`);
     }
   };
 
@@ -301,129 +259,9 @@ export default function App() {
   return (
     <AuthGuard userEmailToLock="giriprasath51@gmail.com">
       <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col font-sans antialiased">
-      {dbStatus && dbStatus !== 'OK' && (
-        <div className="bg-amber-600 text-white p-4 text-sm font-medium z-50 flex flex-col gap-2 relative shadow-lg">
-           {dbStatus === 'TABLE_MISSING' && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-lg pb-1">
-                <AlertTriangle className="w-6 h-6 flex-shrink-0" />
-                <h2>Database Table Missing</h2>
-              </div>
-              <div className="bg-amber-950 p-4 rounded-xl font-mono text-xs overflow-x-auto text-amber-200 shadow-inner">
-                <p className="opacity-90 mb-3">Run the following SQL in your Supabase SQL Editor to create the required table:</p>
-                <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 whitespace-pre">
-{`-- 1. Drop the problematic RLS auto-enable trigger (if it exists)
-DROP EVENT TRIGGER IF EXISTS ensure_rls;
-DROP FUNCTION IF EXISTS public.rls_auto_enable() CASCADE;
-
--- 2. Drop the table if it already exists to start fresh
-DROP TABLE IF EXISTS public.family_members CASCADE;
-
--- 3. Create the table (No trailing commas)
-CREATE TABLE public.family_members (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  first_name text NOT NULL,
-  last_name text,
-  gender text DEFAULT 'other',
-  birth_date date,
-  birth_place text,
-  is_deceased boolean DEFAULT false,
-  death_date date,
-  death_place text,
-  occupation text,
-  notes text,
-  avatar_color text DEFAULT 'bg-slate-200 text-slate-700',
-  email text,
-  phone text,
-  address text,
-  aliases text,
-  ai_context text,
-  father_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
-  mother_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
-  spouse_id uuid REFERENCES public.family_members(id) ON DELETE SET NULL,
-  created_at timestamp with time zone DEFAULT now()
-);
-
--- 4. Enable RLS and create policies for authenticated users
-ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow authenticated users to read" 
-ON public.family_members FOR SELECT 
-TO authenticated USING (true);
-
-CREATE POLICY "Allow authenticated users to insert" 
-ON public.family_members FOR INSERT 
-TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated users to update" 
-ON public.family_members FOR UPDATE 
-TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated users to delete" 
-ON public.family_members FOR DELETE 
-TO authenticated USING (true);`}
-                </pre>
-              </div>
-            </div>
-           )}
-
-           {dbStatus === 'RLS_BLOCKED' && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                <p>Database Write Blocked by RLS</p>
-              </div>
-              <div className="bg-amber-950 p-4 rounded-xl mt-2 font-mono text-xs overflow-x-auto text-amber-200 shadow-inner">
-                 <p className="opacity-90">Your Supabase Table works best with authenticated Row Level Security (RLS) policies.</p>
-                 <br/>
-                 <p className="opacity-90">-- Please run this exact command in your Supabase SQL Editor to allow authenticated owner reads & writes:</p>
-                 <br/>
-                 <pre className="select-all block p-3 bg-amber-900 border border-amber-800 rounded text-amber-100 font-bold whitespace-pre mt-2 text-xs leading-relaxed">
-{`ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow authenticated users to read" ON public.family_members FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated users to insert" ON public.family_members FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow authenticated users to update" ON public.family_members FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR DELETE TO authenticated USING (true);`}
-                 </pre>
-              </div>
-            </div>
-          )}
-          {dbStatus.startsWith('DB_ERROR:') && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                  <p className="font-bold">Database Connection / Configuration Error</p>
-                </div>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="px-3 py-1 bg-amber-800 hover:bg-amber-700 rounded text-xs font-semibold"
-                >
-                  Retry Connection
-                </button>
-              </div>
-              <div className="bg-amber-950 p-4 rounded-xl mt-2 font-mono text-xs overflow-x-auto text-amber-200 shadow-inner space-y-2">
-                <p>The application could not connect to Supabase properly or encountered an unexpected error.</p>
-                <p><strong>Common Causes:</strong></p>
-                <ul className="list-disc pl-4 opacity-90 space-y-1">
-                  <li>Invalid <code className="bg-amber-900 px-1 rounded text-amber-100">VITE_SUPABASE_URL</code> (should be like https://xy....supabase.co)</li>
-                  <li>Invalid <code className="bg-amber-900 px-1 rounded text-amber-100">VITE_SUPABASE_ANON_KEY</code> (make sure it's the <strong>anon public</strong> key, not the service_role key)</li>
-                  <li>Copy-paste errors (trailing spaces, missing characters)</li>
-                </ul>
-                <div className="mt-4 pt-4 border-t border-amber-900/50">
-                  <p className="text-[10px] uppercase text-amber-500 font-bold mb-1">Developer Error Details:</p>
-                  <p className="whitespace-pre-wrap">{dbStatus.substring(9)}</p>
-                </div>
-              </div>
-            </div>
-           )}
-        </div>
-      )}
-
       {/* Editorial Navigation Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-2">
           
           {/* Brand Logo & Heirloom styling */}
           <div className="flex items-center gap-3">
@@ -509,30 +347,54 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
 
           {/* Header Actions */}
           <div className="flex items-center gap-2">
+            {members.length > 0 && (
+              <div className="flex items-center gap-2 mr-2">
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden sm:inline">Focus:</span>
+                <select
+                  id="select-tree-focus-member-header"
+                  value={focusMemberId}
+                  onChange={(e) => {
+                    setFocusMemberId(e.target.value);
+                    if (activeTab !== 'tree') setActiveTab('tree');
+                  }}
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-[180px] truncate"
+                >
+                  {members
+                    .sort((a, b) => a.firstName.localeCompare(b.firstName))
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
             <ThemeToggle />
             <button
               onClick={() => supabase.auth.signOut()}
-              className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-800/40 border border-rose-100 dark:border-rose-800/50 hover:border-rose-200 dark:hover:border-rose-700 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+              title="Lock Vault"
+              className="flex items-center justify-center w-10 h-10 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-800/40 border border-rose-100 dark:border-rose-800/50 hover:border-rose-200 dark:hover:border-rose-700 rounded-xl transition-all shadow-xs cursor-pointer select-none"
             >
-              <LogOut className="w-4 h-4" /> Lock Vault
+              <LogOut className="w-5 h-5" />
             </button>
             <button
               id="btn-global-add-member"
+              title="Add Family Member"
               onClick={() => {
                 setEditingMember(null);
                 setPrefilledRelations(undefined);
                 setShowForm(true);
               }}
-              className="flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+              className="flex items-center justify-center w-10 h-10 text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-xl transition-all shadow-xs cursor-pointer select-none"
             >
-              <Plus className="w-4 h-4" /> Add Family member
+              <Plus className="w-5 h-5" />
             </button>
           </div>
         </div>
       </header>
 
       {/* Main body canvas */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
         
         {/* Dynamic content rendering */}
         {members.length === 0 ? (
@@ -556,14 +418,12 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
                     const { error } = await supabase.from('family_members').upsert(mapped).select();
                     if (error) {
                        console.error('Supabase load sample error:', error);
-                       setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
                        return;
                     }
                     setMembers(SAMPLE_FAMILY);
                     setFocusMemberId('11111111-1111-4111-a111-111111111118');
                   } catch (err: any) {
                     console.error('Client error loading sample:', err);
-                    setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
                   }
                 }}
                 className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 cursor-pointer shadow-sm transition-colors"
@@ -587,39 +447,7 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
           <>
             {/* TAB 1: THE TREE VISUALIZER */}
             {activeTab === 'tree' && currentFocusMember && (
-              <div className="space-y-6">
-                {/* Visualizer header controls */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b pb-4 mb-4">
-                  <div>
-                    <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">
-                      Visual Connections Tree
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Currently centring relationships around{' '}
-                      <span className="font-bold text-indigo-750 dark:text-indigo-400">{currentFocusMember.firstName} {currentFocusMember.lastName}</span>
-                    </p>
-                  </div>
-
-                  {/* Dropdown to change focus member */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Tree Center Focus:</span>
-                    <select
-                      id="select-tree-focus-member"
-                      value={focusMemberId}
-                      onChange={(e) => setFocusMemberId(e.target.value)}
-                      className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors"
-                    >
-                      {members
-                        .sort((a, b) => a.firstName.localeCompare(b.firstName))
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.firstName} {m.lastName}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                </div>
-
+              <div className="space-y-2">
                 <FamilyTreeVisualizer
                   focusMember={currentFocusMember}
                   allMembers={members}
@@ -850,14 +678,12 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
                         const { error } = await supabase.from('family_members').upsert(mapped).select();
                         if (error) {
                            console.error('Import error', error);
-                           setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
                            return;
                         }
                         setFocusMemberId(importedMembers[0].id);
                         setActiveTab('tree');
                       } catch (err: any) {
                         console.error('import catch', err);
-                        setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
                       }
                     }
                   }}
@@ -869,10 +695,10 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
                          const ids = members.map(m => m.id);
                          const { error } = await supabase.from('family_members').delete().in('id', ids);
                          if (error) {
-                           setDbStatus(`DB_ERROR: ${error.message}`);
+                           console.error(`DB_ERROR: ${error.message}`);
                          }
                        } catch (err: any) {
-                           setDbStatus(`DB_ERROR: ${err.message}`);
+                           console.error(`DB_ERROR: ${err.message}`);
                        }
                     }
                   }}
@@ -883,11 +709,9 @@ CREATE POLICY "Allow authenticated users to delete" ON public.family_members FOR
                       const { error } = await supabase.from('family_members').upsert(mapped).select();
                       if (error) {
                         console.error('Supabase load sample error:', error);
-                        setDbStatus(error.code === '42501' || error.message?.includes('security') ? 'RLS_BLOCKED' : `DB_ERROR: ${error.message}`);
                       }
                     } catch (err: any) {
                       console.error('Client error loading sample:', err);
-                      setDbStatus(err?.code === '42501' ? 'RLS_BLOCKED' : `DB_ERROR: ${err.message}`);
                     }
                     setFocusMemberId('11111111-1111-4111-a111-111111111118');
                     setActiveTab('tree');

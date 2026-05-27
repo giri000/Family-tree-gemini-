@@ -50,22 +50,13 @@ export function FamilyTreeVisualizer({
 
   // Simple Breadcrumb tracker or Quick Jumper to any member
   return (
-    <div className="space-y-12 pb-12 overflow-x-auto overflow-y-hidden w-full relative">
-      {/* Visualizer Tutorial Tip */}
-      <div className="p-3 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-900/50 rounded-xl max-w-xl mx-auto flex items-start gap-2 text-xs text-amber-900 dark:text-amber-400 leading-relaxed transition-colors">
-        <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold">Pro Tip: </span>
-          Click <span className="font-semibold">any member card</span> to immediately center the family tree around them. 
-          Use the edit icon on hover to modify dates, bios, or colors. You can also click empty slots to add relatives organically.
-        </div>
-      </div>
+    <div className="space-y-8 pb-8 overflow-x-auto overflow-y-hidden w-full relative">
 
       {/* Primary Tree Canvas Grid */}
-      <div className="flex flex-col items-center justify-center space-y-12 md:max-w-7xl mx-auto px-4 min-w-[900px]">
+      <div className="flex flex-col items-center justify-center space-y-8 mx-auto px-2 min-w-max">
         
         {/* ================= TIER 1: GRANDPARENTS ================= */}
-        <div className="grid grid-cols-2 gap-24 w-full max-w-5xl justify-items-center">
+        <div className="flex gap-16 w-full justify-center">
           {/* Paternal Grandparents Group */}
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Paternal Ancestors</span>
@@ -166,13 +157,13 @@ export function FamilyTreeVisualizer({
         </div>
 
         {/* Stem 1: Downward connection line from Grandparents box center toward parents */}
-        <div className="relative w-full max-w-5xl h-2 flex justify-around select-none pointer-events-none">
+        <div className="relative w-full h-2 flex justify-center gap-[23rem] select-none pointer-events-none">
           <div className="w-0.5 h-6 bg-slate-300 dark:bg-slate-700 -mt-2"></div>
           <div className="w-0.5 h-6 bg-slate-300 dark:bg-slate-700 -mt-2"></div>
         </div>
 
         {/* ================= TIER 2: PARENTS ================= */}
-        <div className="relative flex gap-32 items-center justify-center">
+        <div className="relative flex gap-24 items-center justify-center">
           {/* Father Node Container */}
           <div className="relative flex flex-col items-center">
             {father ? (
@@ -229,7 +220,7 @@ export function FamilyTreeVisualizer({
         <div className="h-6 w-0.5 bg-slate-300 dark:bg-slate-700"></div>
 
         {/* ================= TIER 3: FOCUS INDIVIDUAL + PARTNER + SIBLINGS ================= */}
-        <div className="flex items-start justify-center gap-16 max-w-6xl w-full">
+        <div className="flex items-start justify-center gap-12 w-full min-w-max">
           
           {/* Left panel: Sibling lists block */}
           <div className="w-56 shrink-0 flex flex-col pt-4">
@@ -343,7 +334,7 @@ export function FamilyTreeVisualizer({
         <div className="h-6 w-0.5 bg-slate-300 dark:bg-slate-700"></div>
 
         {/* ================= TIER 4: CHILDREN ================= */}
-        <div className="flex flex-col items-center w-full max-w-4xl">
+        <div className="flex flex-col items-center w-full min-w-max">
           <div className="flex items-center gap-1.5 border-b dark:border-slate-700 pb-1 mb-6 text-slate-500 dark:text-slate-400 w-full justify-center transition-colors">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Successors & Children ({children.length})</span>
           </div>
