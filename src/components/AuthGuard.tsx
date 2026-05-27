@@ -87,6 +87,20 @@ export function AuthGuard({ children, userEmailToLock }: { children: React.React
 
                     <button
                        onClick={async () => {
+                         setMsg('Sending reset email...');
+                         const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                           redirectTo: window.location.origin,
+                         });
+                         if (error) setMsg(error.message);
+                         else setMsg('Password reset email sent! Check your inbox.');
+                       }}
+                       className="w-full text-slate-500 dark:text-slate-400 font-medium py-1.5 rounded-lg text-xs hover:text-slate-700 dark:hover:text-slate-200 transition"
+                    >
+                       Forgot your password?
+                    </button>
+
+                    <button
+                       onClick={async () => {
                          if (!password || password.length < 6) {
                             setMsg('Password must be at least 6 characters.');
                             return;

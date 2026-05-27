@@ -270,12 +270,8 @@ export default function App() {
             </div>
             <div className="text-center sm:text-left">
               <h1 className="text-base font-bold font-serif text-slate-800 dark:text-slate-100 flex items-center gap-1.5 justify-center sm:justify-start">
-                Lineage Archives
-                <span className="text-[10px] uppercase font-sans font-extrabold text-indigo-650 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-100 dark:border-indigo-800 px-1.5 py-0.5 rounded-md tracking-wider">
-                  Personal Vault
-                </span>
+                Kinship Trace
               </h1>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Digital Family Record, Milestones & Connections</p>
             </div>
           </div>
 

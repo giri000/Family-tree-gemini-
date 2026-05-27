@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FamilyMember } from '../types';
-import { Download, Upload, RefreshCw, Trash2, Database, AlertTriangle, CheckCircle, FileText, Bot } from 'lucide-react';
+import { Download, Upload, RefreshCw, Trash2, Database, AlertTriangle, CheckCircle, FileText, Bot, Lock } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface DatabaseControlsProps {
   members: FamilyMember[];
@@ -18,6 +19,8 @@ export function DatabaseControls({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
 
   // Export JSON Database
   const handleExportJSON = () => {
@@ -306,6 +309,54 @@ export function DatabaseControls({
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Account Security Feature */}
+      <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row gap-6 items-center justify-between mt-6">
+        <div className="space-y-1 md:max-w-xl text-center md:text-left">
+          <div className="flex items-center gap-2 justify-center md:justify-start">
+            <Lock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h4 className="text-base font-semibold text-slate-800 dark:text-slate-100 font-serif">Account Security</h4>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+            Update your master password to protect your lineage database from unauthorized access. Make sure it's secure. 
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto">
+          <input
+            type="password"
+            placeholder="New Master Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full px-4 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          />
+          <button
+            id="btn-update-password"
+            onClick={async () => {
+              if (!newPassword || newPassword.length < 6) {
+                setPasswordMsg('Password must be at least 6 characters.');
+                return;
+              }
+              setPasswordMsg('Updating...');
+              const { error } = await supabase.auth.updateUser({ password: newPassword });
+              if (error) {
+                setPasswordMsg(error.message);
+              } else {
+                setPasswordMsg('Password updated successfully!');
+                setNewPassword('');
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
+          >
+            Update Password
+          </button>
+          {passwordMsg && (
+            <p className={`text-xs font-semibold text-center mt-1 ${passwordMsg.includes('success') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {passwordMsg}
+            </p>
+          )}
         </div>
       </div>
     </div>
