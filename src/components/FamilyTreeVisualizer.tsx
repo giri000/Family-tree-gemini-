@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FamilyMember } from '../types';
 import { MemberCard } from './MemberCard';
-import { Heart, Plus, Users, ArrowUpRight, Award, HelpCircle } from 'lucide-react';
+import { Heart, Plus, Users, ArrowUpRight, Award, HelpCircle, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 
 interface FamilyTreeVisualizerProps {
   focusMember: FamilyMember;
@@ -19,6 +19,9 @@ export function FamilyTreeVisualizer({
   onAddRelation,
 }: FamilyTreeVisualizerProps) {
   
+  // Adaptive zoom: zoom out by default on mobile screens
+  const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768) ? 0.5 : 1);
+
   // Helper to locate any member by ID safely
   const findMember = (id?: string) => allMembers.find((m) => m.id === id);
 
@@ -50,12 +53,40 @@ export function FamilyTreeVisualizer({
 
   // Simple Breadcrumb tracker or Quick Jumper to any member
   return (
-    <div className="space-y-8 pb-8 overflow-x-auto overflow-y-hidden w-full relative">
+    <div className="relative w-full">
+      {/* Zoom Controls */}
+      <div className="absolute top-2 right-4 z-10 flex flex-col md:flex-row gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <button
+          onClick={() => setZoom(z => Math.min(z + 0.1, 1.5))}
+          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setZoom(1)}
+          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Reset Zoom"
+        >
+          <Maximize className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setZoom(z => Math.max(z - 0.1, 0.3))}
+          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-5 h-5" />
+        </button>
+      </div>
 
-      {/* Primary Tree Canvas Grid */}
-      <div className="flex flex-col items-center justify-center space-y-8 mx-auto px-2 min-w-max">
-        
-        {/* ================= TIER 1: GRANDPARENTS ================= */}
+      <div className="space-y-8 pb-8 overflow-x-auto overflow-y-hidden w-full">
+        {/* Primary Tree Canvas Grid */}
+        <div 
+          className="flex flex-col items-center justify-center space-y-8 mx-auto px-2 min-w-max transition-transform duration-200 ease-out origin-top"
+          style={{ transform: `scale(${zoom})`, marginBottom: `${(zoom - 1) * 300}px` }}
+        >
+          
+          {/* ================= TIER 1: GRANDPARENTS ================= */}
         <div className="flex gap-16 w-full justify-center">
           {/* Paternal Grandparents Group */}
           <div className="flex flex-col items-center">
@@ -251,7 +282,7 @@ export function FamilyTreeVisualizer({
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">
-                        {sib.firstName} {sib.lastName}
+                        {sib.firstName} {sib.lastName || ''}
                       </p>
                       <p className="text-[9px] font-mono text-slate-400 dark:text-slate-500">
                         {sib.birthDate ? new Date(sib.birthDate).getFullYear() : '?'}
@@ -371,6 +402,7 @@ export function FamilyTreeVisualizer({
         </div>
 
       </div>
+    </div>
     </div>
   );
 }

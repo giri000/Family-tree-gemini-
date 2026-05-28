@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { FamilyMember } from '../types';
 import { Download, Upload, RefreshCw, Trash2, Database, AlertTriangle, CheckCircle, FileText, Bot, Lock } from 'lucide-react';
+import Papa from 'papaparse';
 import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import airtableData from '../airtable_data.json';
 
 interface DatabaseControlsProps {
   members: FamilyMember[];
@@ -72,12 +74,12 @@ export function DatabaseControls({
         const spouse = members.find(s => s.id === m.spouseId);
         
         return [
-          `${m.firstName} ${m.lastName}`.trim(),
+          `${m.firstName} ${m.lastName || ''}`.trim(),
           m.gender || 'Unknown',
           m.birthDate || 'N/A',
           m.deathDate || 'Alive',
           `${father ? father.firstName : '-'} / ${mother ? mother.firstName : '-'}`,
-          spouse ? `${spouse.firstName} ${spouse.lastName}`.trim() : '-'
+          spouse ? `${spouse.firstName} ${spouse.lastName || ''}`.trim() : '-'
         ];
       });
 
@@ -123,7 +125,7 @@ export function DatabaseControls({
 
         return {
           id: m.id,
-          name: `${m.firstName} ${m.lastName}`.trim(),
+          name: `${m.firstName} ${m.lastName || ''}`.trim(),
           aliases: m.aliases ? m.aliases.split(',').map(a => a.trim()) : [],
           contactInfo: {
             email: m.email,
@@ -136,9 +138,9 @@ export function DatabaseControls({
             occupation: m.occupation,
           },
           relationships: {
-            father: father ? `${father.firstName} ${father.lastName}`.trim() : null,
-            mother: mother ? `${mother.firstName} ${mother.lastName}`.trim() : null,
-            spouse: spouse ? `${spouse.firstName} ${spouse.lastName}`.trim() : null,
+            father: father ? `${father.firstName} ${father.lastName || ''}`.trim() : null,
+            mother: mother ? `${mother.firstName} ${mother.lastName || ''}`.trim() : null,
+            spouse: spouse ? `${spouse.firstName} ${spouse.lastName || ''}`.trim() : null,
           },
           aiContextInstructions: m.aiContext || "No specific instructions.",
           notes: m.notes
@@ -199,6 +201,109 @@ export function DatabaseControls({
   };
 
   // Upload Handlers
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      Papa.parse(files[0], {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          try {
+            const importedMembers: FamilyMember[] = [];
+            
+            for (const row of results.data as any[]) {
+              // Basic fields mapping (we do our best to guess columns)
+              const firstKey = Object.keys(row).find(k => k.toLowerCase().includes('first'));
+              const lastKey = Object.keys(row).find(k => k.toLowerCase().includes('last'));
+              const nameKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'name');
+              
+              let firstName = firstKey ? row[firstKey] : '';
+              let lastName = lastKey ? row[lastKey] : '';
+              
+              if (!firstName && !lastName && nameKey) {
+                const parts = String(row[nameKey]).split(' ');
+                firstName = parts[0] || 'Unknown';
+                lastName = parts.slice(1).join(' ') || '';
+              } else if (!firstName) {
+                firstName = 'Unknown';
+              }
+              
+              const genderKey = Object.keys(row).find(k => k.toLowerCase().includes('gender') || k.toLowerCase() === 'sex');
+              let gender: 'male' | 'female' | 'other' = 'other';
+              if (genderKey) {
+                const g = String(row[genderKey]).toLowerCase();
+                if (g.startsWith('m')) gender = 'male';
+                else if (g.startsWith('f')) gender = 'female';
+              }
+              
+              const birthKey = Object.keys(row).find(k => k.toLowerCase().includes('birth') || k.toLowerCase() === 'dob');
+              const deathKey = Object.keys(row).find(k => k.toLowerCase().includes('death'));
+              const occupationKey = Object.keys(row).find(k => k.toLowerCase().includes('occupation') || k.toLowerCase() === 'job');
+              const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));
+              const phoneKey = Object.keys(row).find(k => k.toLowerCase().includes('phone'));
+              const addressKey = Object.keys(row).find(k => k.toLowerCase().includes('address') || k.toLowerCase() === 'location');
+              
+              // Standard specific mapped columns
+              const mappedKeys = new Set([firstKey, lastKey, nameKey, genderKey, birthKey, deathKey, occupationKey, emailKey, phoneKey, addressKey]);
+              
+              // Collect all unmapped data for the `notes` field so no detail from airtable is lost.
+              let extraNotes = [];
+              for (const header of Object.keys(row)) {
+                if (!mappedKeys.has(header) && row[header]) {
+                  const val = String(row[header]).trim();
+                  if (val && val !== 'undefined') {
+                    extraNotes.push(`**${header}**: ${val}`);
+                  }
+                }
+              }
+              
+              const notesKey = Object.keys(row).find(k => k.toLowerCase() === 'notes');
+              if (notesKey && row[notesKey]) {
+                  extraNotes.unshift(String(row[notesKey]));
+              }
+
+              const newMember: FamilyMember = {
+                id: crypto.randomUUID(),
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                gender,
+                avatarColor: 'bg-emerald-600 text-white',
+                isDeceased: !!deathKey && !!row[deathKey],
+                birthDate: birthKey ? (row[birthKey] || undefined) : undefined,
+                deathDate: deathKey ? (row[deathKey] || undefined) : undefined,
+                occupation: occupationKey ? (row[occupationKey] || undefined) : undefined,
+                email: emailKey ? (row[emailKey] || undefined) : undefined,
+                phone: phoneKey ? (row[phoneKey] || undefined) : undefined,
+                address: addressKey ? (row[addressKey] || undefined) : undefined,
+                notes: extraNotes.length > 0 ? extraNotes.join('\\n\\n') : undefined
+              };
+              
+              importedMembers.push(newMember);
+            }
+            
+            if (importedMembers.length === 0) {
+              throw new Error("No usable data found in CSV/Airtable export.");
+            }
+            
+            // Append these imported members to existing list via the onImport
+            onImport(importedMembers); // App.tsx handles upsertion
+            
+            setImportStatus({
+              type: 'success',
+              message: `Successfully imported ${importedMembers.length} records from CSV!`,
+            });
+            setTimeout(() => setImportStatus(null), 8000);
+          } catch (e: any) {
+            setImportStatus({ type: 'error', message: e.message || 'Error processing CSV sheet.' });
+          }
+        },
+        error: (err) => {
+          setImportStatus({ type: 'error', message: 'Failed to read CSV. Please ensure it is a valid format.' });
+        }
+      });
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
@@ -229,7 +334,11 @@ export function DatabaseControls({
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+      if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+        // Mocking event object to pass to handleCSVUpload
+        const pseudoEvent = { target: { files: e.dataTransfer.files } } as unknown as React.ChangeEvent<HTMLInputElement>;
+        handleCSVUpload(pseudoEvent);
+      } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
         const reader = new FileReader();
         reader.onload = (event) => {
           if (event.target?.result) {
@@ -240,7 +349,7 @@ export function DatabaseControls({
       } else {
         setImportStatus({
           type: 'error',
-          message: 'Unsupported file format. Please upload standard JSON database backups (.json).',
+          message: 'Unsupported file format. Please upload standard JSON database backups (.json) or CSV (.csv).',
         });
       }
     }
@@ -261,6 +370,23 @@ export function DatabaseControls({
         </div>
 
         <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto">
+          <button
+            onClick={() => {
+              try {
+                // Ensure proper typing for imported JSON
+                const members = airtableData as unknown as FamilyMember[];
+                onImport(members);
+                setImportStatus({ type: 'success', message: `Successfully loaded ${members.length} members from pre-parsed Airtable!` });
+                setTimeout(() => setImportStatus(null), 5000);
+              } catch (err: any) {
+                setImportStatus({ type: 'error', message: err.message });
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
+          >
+            <Download className="w-4 h-4" /> Load Demo Airtable
+          </button>
+
           <button
             id="btn-export-pdf"
             onClick={handleExportPDF}
@@ -290,7 +416,7 @@ export function DatabaseControls({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Import file dropzone */}
         <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between space-y-4">
-          <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Restore Backup File</h4>
+          <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Restore Backup / Import Airtable</h4>
           
           <div
             id="drag-file-dropzone"
@@ -306,15 +432,24 @@ export function DatabaseControls({
             }`}
           >
             <Upload className={`w-8 h-8 mb-2 transition-transform ${dragActive ? 'scale-110 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`} />
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Drag & Drop Family Backup File here</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Or click to select files from your computer (.json format Only)</p>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Drag & Drop Database File here</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Or click to select files from your computer (.json or .csv format)</p>
             
             <input
               id="file-input-uploader"
               ref={fileInputRef}
               type="file"
-              accept=".json"
-              onChange={handleFileUpload}
+              accept=".json,.csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  if (file.name.endsWith('.csv') || file.type === 'text/csv') {
+                    handleCSVUpload(e);
+                  } else {
+                    handleFileUpload(e);
+                  }
+                }
+              }}
               className="hidden"
             />
           </div>

@@ -251,7 +251,7 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 truncate max-w-[130px]">
-                        {member.firstName} {member.lastName}
+                        {member.firstName} {member.lastName || ''}
                       </p>
                       <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-medium">
                         Turning {nextAge} on {monthDay}
@@ -290,12 +290,12 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
           {oldestLiving ? (
             <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-2xl flex-1 flex flex-col justify-center text-center space-y-3">
               <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto text-xl font-bold shadow-xs border-2 border-white dark:border-slate-800 bg-yellow-500 text-white">
-                {oldestLiving.firstName[0]}{oldestLiving.lastName[0]}
+                {oldestLiving.firstName[0]}{oldestLiving.lastName?.[0] || ''}
               </div>
               
               <div>
                 <h5 className="text-sm font-serif font-bold text-slate-800 dark:text-slate-100">
-                  {oldestLiving.firstName} {oldestLiving.lastName}
+                  {oldestLiving.firstName} {oldestLiving.lastName || ''}
                 </h5>
                 <p className="text-[10px] font-mono text-yellow-800 dark:text-yellow-600 font-bold uppercase tracking-wider mt-0.5">
                   Age {getAgeOfLiving(oldestLiving.birthDate)} — Matriarch/Patriarch

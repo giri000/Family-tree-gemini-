@@ -69,7 +69,7 @@ export function FamilyTimeline({ members, onFocusMember }: FamilyTimelineProps) 
 
   // Filter events
   const filteredEvents = events.filter((e) => {
-    const fullName = `${e.member.firstName} ${e.member.lastName}`.toLowerCase();
+    const fullName = `${e.member.firstName} ${e.member.lastName || ''}`.toLowerCase();
     const searchMatch = fullName.includes(searchQuery.toLowerCase()) || 
                         e.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         e.year.toString().includes(searchQuery);
@@ -184,7 +184,7 @@ export function FamilyTimeline({ members, onFocusMember }: FamilyTimelineProps) 
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${event.member.avatarColor}`} />
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer flex items-center gap-1" onClick={() => onFocusMember(event.member.id)}>
-                        {event.member.firstName} {event.member.lastName}
+                        {event.member.firstName} {event.member.lastName || ''}
                         <ArrowUpRight className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
                       </h4>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${

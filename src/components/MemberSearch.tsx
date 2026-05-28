@@ -27,13 +27,13 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
     ? members.slice().sort((a, b) => a.firstName.localeCompare(b.firstName))
     : members
         .filter((member) => {
-          const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+          const fullName = `${member.firstName} ${member.lastName || ''}`.toLowerCase();
           return fullName.includes(query.toLowerCase());
         })
         .sort((a, b) => a.firstName.localeCompare(b.firstName));
 
   const currentMember = members.find(m => m.id === currentFocusId);
-  const displayValue = isOpen ? query : (currentMember ? `${currentMember.firstName} ${currentMember.lastName}` : '');
+  const displayValue = isOpen ? query : (currentMember ? `${currentMember.firstName} ${currentMember.lastName || ''}`.trim() : '');
 
   return (
     <div className="relative w-48 sm:w-64" ref={wrapperRef}>
@@ -72,7 +72,7 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-medium'
                   }`}
                 >
-                  <span className="truncate">{member.firstName} {member.lastName}</span>
+                  <span className="truncate">{member.firstName} {member.lastName || ''}</span>
                 </button>
               ))}
             </div>

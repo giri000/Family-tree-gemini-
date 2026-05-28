@@ -12,6 +12,7 @@ create table public.family_members (
   death_date text,
   death_place text,
   occupation text,
+  blood_group text,
   notes text,
   avatar_color text,
   avatar_url text,

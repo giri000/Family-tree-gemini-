@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FamilyMember } from '../types';
-import { X, Save, Trash2, Calendar, MapPin, Briefcase, FileText } from 'lucide-react';
+import { X, Save, Trash2, Calendar, MapPin, Briefcase, FileText, Camera } from 'lucide-react';
+import { AvatarCropperModal } from './AvatarCropperModal';
 
 interface MemberFormProps {
   member: FamilyMember | null; // null if creating a new member
@@ -47,9 +48,11 @@ export function MemberForm({
   const [deathDate, setDeathDate] = useState('');
   const [deathPlace, setDeathPlace] = useState('');
   const [occupation, setOccupation] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
   const [notes, setNotes] = useState('');
   const [avatarColor, setAvatarColor] = useState('bg-indigo-600 text-white');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   // Relational states
   const [fatherId, setFatherId] = useState('');
@@ -66,6 +69,20 @@ export function MemberForm({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   // Hydrate form on member loaded or pre-filled relation update
+  
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image is too large. Max size is 5MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => setCropImageSrc(reader.result as string), false);
+      reader.readAsDataURL(file);
+      e.target.value = ''; // Reset input to allow selecting same file again
+    }
+  };
   useEffect(() => {
     if (member) {
       setFirstName(member.firstName || '');
@@ -77,6 +94,7 @@ export function MemberForm({
       setDeathDate(member.deathDate || '');
       setDeathPlace(member.deathPlace || '');
       setOccupation(member.occupation || '');
+      setBloodGroup(member.bloodGroup || '');
       setNotes(member.notes || '');
       setAvatarColor(member.avatarColor || 'bg-indigo-600 text-white');
       setAvatarUrl(member.avatarUrl || '');
@@ -100,6 +118,7 @@ export function MemberForm({
       setDeathDate('');
       setDeathPlace('');
       setOccupation('');
+      setBloodGroup('');
       setNotes('');
       setEmail('');
       setPhone('');
@@ -149,6 +168,7 @@ export function MemberForm({
       deathDate: isDeceased ? (deathDate || undefined) : undefined,
       deathPlace: isDeceased ? (deathPlace.trim() || undefined) : undefined,
       occupation: occupation.trim() || undefined,
+      bloodGroup: bloodGroup.trim() || undefined,
       notes: notes.trim() || undefined,
       avatarColor,
       avatarUrl: avatarUrl.trim() || undefined,
@@ -167,6 +187,7 @@ export function MemberForm({
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-xs sm:p-4 overflow-y-auto animate-fade-in">
       <div className="bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl sm:border border-slate-100 dark:border-slate-800 max-w-2xl w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
@@ -262,17 +283,36 @@ export function MemberForm({
                   ))}
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Avatar Image URL (Optional)</label>
-                <input
-                  type="url"
-                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://example.com/photo.jpg"
-                />
+            <div className="flex flex-col items-center">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3 text-center w-full">Profile Picture</label>
+              
+              <div className="relative group">
+                <div className={`w-28 h-28 rounded-full overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg flex items-center justify-center font-serif text-3xl font-bold bg-slate-100 dark:bg-slate-700 ${!avatarUrl ? avatarColor : ''}`}>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="opacity-70 text-white">{firstName[0] || '?'}{lastName[0] || ''}</span>
+                  )}
+                </div>
+                
+                <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer">
+                  <Camera className="w-8 h-8 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onFileChange}
+                  />
+                </label>
               </div>
+
+              {avatarUrl && (
+                <button type="button" onClick={() => setAvatarUrl('')} className="mt-3 text-xs text-rose-500 hover:text-rose-600 font-semibold cursor-pointer">
+                  Remove Photo
+                </button>
+              )}
             </div>
           </div>
 
@@ -363,7 +403,7 @@ export function MemberForm({
                   <option value="">-- None / Unknown --</option>
                   {eligibleFatherOptions.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.firstName} {f.lastName} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
+                      {f.firstName} {f.lastName || ''} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
                     </option>
                   ))}
                 </select>
@@ -380,7 +420,7 @@ export function MemberForm({
                   <option value="">-- None / Unknown --</option>
                   {eligibleMotherOptions.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.firstName} {f.lastName} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
+                      {f.firstName} {f.lastName || ''} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
                     </option>
                   ))}
                 </select>
@@ -397,7 +437,7 @@ export function MemberForm({
                   <option value="">-- None / Single / Unknown --</option>
                   {eligibleSpouseOptions.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.firstName} {f.lastName} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
+                      {f.firstName} {f.lastName || ''} ({f.birthDate ? new Date(f.birthDate).getFullYear() : '?'})
                     </option>
                   ))}
                 </select>
@@ -479,7 +519,7 @@ export function MemberForm({
           {/* Section 5: Narrative details */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b dark:border-slate-800 pb-1">Biography & Heritage notes</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   <Briefcase className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Primary Vocation / Profession
@@ -495,6 +535,20 @@ export function MemberForm({
               </div>
 
               <div>
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  Blood Group
+                </label>
+                <input
+                  id="input-blood-group"
+                  type="text"
+                  value={bloodGroup}
+                  onChange={(e) => setBloodGroup(e.target.value)}
+                  placeholder="e.g. O+, A-, B+"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              <div className="md:col-span-2">
                 <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   <FileText className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Life Memoirs & Anecdotes
                 </label>
@@ -569,5 +623,16 @@ export function MemberForm({
         </div>
       </div>
     </div>
+    {cropImageSrc && (
+      <AvatarCropperModal
+        imageSrc={cropImageSrc}
+        onComplete={(dataUrl) => {
+          setAvatarUrl(dataUrl);
+          setCropImageSrc(null);
+        }}
+        onCancel={() => setCropImageSrc(null)}
+      />
+    )}
+    </>
   );
 }

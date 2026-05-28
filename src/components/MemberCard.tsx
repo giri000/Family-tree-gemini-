@@ -75,7 +75,7 @@ export function MemberCard({
       {/* Avatar */}
       <div className={`mt-1.5 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center font-serif text-lg font-bold shadow-xs ${member.avatarUrl ? 'bg-slate-200 dark:bg-slate-800' : (member.avatarColor || 'bg-slate-500 text-white')}`}>
         {member.avatarUrl ? (
-          <img src={member.avatarUrl} alt={`${member.firstName} ${member.lastName}`} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
+          <img src={member.avatarUrl} alt={`${member.firstName} ${member.lastName || ''}`.trim()} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
         ) : (
           initials || <User className="w-5 h-5" />
         )}
@@ -83,7 +83,7 @@ export function MemberCard({
 
       {/* Name */}
       <h4 className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100 line-clamp-1">
-        {member.firstName} {member.lastName}
+        {member.firstName} {member.lastName || ''}
       </h4>
 
       {/* Lifespan Years */}
@@ -106,6 +106,11 @@ export function MemberCard({
         {member.occupation && member.occupation !== 'Toddler' && member.occupation !== 'Infant' && (
           <span className="text-[9px] font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded max-w-[80px] truncate">
             {member.occupation}
+          </span>
+        )}
+        {member.bloodGroup && (
+          <span className="text-[9px] font-medium text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-1.5 py-0.5 rounded max-w-[80px] truncate">
+            🩸 {member.bloodGroup}
           </span>
         )}
       </div>

@@ -160,10 +160,12 @@ export default function App() {
 
     // Push to Supabase asynchronously
     try {
-      // Adding .select() guarantees that if RLS is active and blocks the write, it will throw an error immediately here.
-      const { error } = await supabase.from('family_members').upsert(updatables).select();
-      if (error) {
-        console.error('Supabase upsert error:', error);
+      if (isConfigured) {
+        // Adding .select() guarantees that if RLS is active and blocks the write, it will throw an error immediately here.
+        const { error } = await supabase.from('family_members').upsert(updatables).select();
+        if (error) {
+          console.error('Supabase upsert error:', error);
+        }
       }
     } catch (err: any) {
       console.error('Supabase client error:', err);
@@ -194,19 +196,21 @@ export default function App() {
     setMembers(updatedMembers);
 
     try {
-      await supabase.from('family_members').delete().eq('id', id);
+      if (isConfigured) {
+        await supabase.from('family_members').delete().eq('id', id);
 
-      // Clean up references in other members
-      const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
-        let patch = { ...m };
-        if (patch.fatherId === id) patch.fatherId = undefined;
-        if (patch.motherId === id) patch.motherId = undefined;
-        if (patch.spouseId === id) patch.spouseId = undefined;
-        return mapToDb(patch);
-      });
+        // Clean up references in other members
+        const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
+          let patch = { ...m };
+          if (patch.fatherId === id) patch.fatherId = undefined;
+          if (patch.motherId === id) patch.motherId = undefined;
+          if (patch.spouseId === id) patch.spouseId = undefined;
+          return mapToDb(patch);
+        });
 
-      if (updatables.length > 0) {
-        await supabase.from('family_members').upsert(updatables);
+        if (updatables.length > 0) {
+          await supabase.from('family_members').upsert(updatables);
+        }
       }
     } catch (err: any) {
       console.error('Delete error', err);
@@ -258,7 +262,7 @@ export default function App() {
 
   // 7. Directory List Filters
   const filteredDirectoryMembers = members.filter((m) => {
-    const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
+    const fullName = `${m.firstName} ${m.lastName || ''}`.toLowerCase();
     const matchesSearch = fullName.includes(memberSearch.toLowerCase()) || 
                           (m.occupation || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
                           (m.notes || '').toLowerCase().includes(memberSearch.toLowerCase());
@@ -554,7 +558,7 @@ export default function App() {
                             {/* Core info labels */}
                             <div>
                               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">
-                                {member.firstName} {member.lastName}
+                                {member.firstName} {member.lastName || ''}
                               </h4>
                               {member.birthDate && (
                                 <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
@@ -568,6 +572,11 @@ export default function App() {
                               {member.occupation && (
                                 <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
                                   💼 {member.occupation}
+                                </p>
+                              )}
+                              {member.bloodGroup && (
+                                <p className="text-[11px] font-medium text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                                  🩸 {member.bloodGroup}
                                 </p>
                               )}
                               {parentNames.length > 0 && (
@@ -662,14 +671,30 @@ export default function App() {
                   onImport={async (importedMembers) => {
                     if (importedMembers.length > 0) {
                       try {
-                        const mapped = importedMembers.map(mapToDb);
-                        const { error } = await supabase.from('family_members').upsert(mapped).select();
-                        if (error) {
-                           console.error('Import error', error);
-                           return;
-                        }
+                        // Optimistic local state update
+                        setMembers(prev => {
+                          const newMembers = [...prev];
+                          for (const member of importedMembers) {
+                            const existingIdx = newMembers.findIndex(m => m.id === member.id);
+                            if (existingIdx > -1) {
+                              newMembers[existingIdx] = member;
+                            } else {
+                              newMembers.push(member);
+                            }
+                          }
+                          return newMembers;
+                        });
+
                         setFocusMemberId(importedMembers[0].id);
                         setActiveTab('tree');
+
+                        if (isConfigured) {
+                          const mapped = importedMembers.map(mapToDb);
+                          const { error } = await supabase.from('family_members').upsert(mapped).select();
+                          if (error) {
+                             console.error('Import error', error);
+                          }
+                        }
                       } catch (err: any) {
                         console.error('import catch', err);
                       }
@@ -679,11 +704,13 @@ export default function App() {
                     // Wipe all entries from Supabase gracefully by ids
                     if (members.length > 0) {
                        try {
-                         setMembers([]);
                          const ids = members.map(m => m.id);
-                         const { error } = await supabase.from('family_members').delete().in('id', ids);
-                         if (error) {
-                           console.error(`DB_ERROR: ${error.message}`);
+                         setMembers([]);
+                         if (isConfigured) {
+                           const { error } = await supabase.from('family_members').delete().in('id', ids);
+                           if (error) {
+                             console.error(`DB_ERROR: ${error.message}`);
+                           }
                          }
                        } catch (err: any) {
                            console.error(`DB_ERROR: ${err.message}`);

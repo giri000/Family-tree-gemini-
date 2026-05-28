@@ -10,6 +10,7 @@ export interface FamilyMember {
   isDeceased: boolean;
   occupation?: string;
   notes?: string;
+  bloodGroup?: string;
   avatarColor: string; // Tailwind color class or hex, e.g., 'emerald', 'indigo', 'amber'
   avatarUrl?: string; // Display Picture URL
   
