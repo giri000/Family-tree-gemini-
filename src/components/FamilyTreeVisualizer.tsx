@@ -242,8 +242,12 @@ export function FamilyTreeVisualizer({
                     onClick={() => onFocus(sib.id)}
                     className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg cursor-pointer transition-all shadow-xs"
                   >
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${sib.avatarColor}`}>
-                      {sib.firstName[0]}
+                    <div className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold shrink-0 ${sib.avatarUrl ? 'bg-slate-200 dark:bg-slate-800' : sib.avatarColor}`}>
+                      {sib.avatarUrl ? (
+                        <img src={sib.avatarUrl} alt={sib.firstName} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                      ) : (
+                        sib.firstName[0]
+                      )}
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">

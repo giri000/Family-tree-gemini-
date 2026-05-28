@@ -11,10 +11,12 @@ export interface FamilyMember {
   occupation?: string;
   notes?: string;
   avatarColor: string; // Tailwind color class or hex, e.g., 'emerald', 'indigo', 'amber'
+  avatarUrl?: string; // Display Picture URL
   
   // Contact & AI Agent Context
   email?: string;
   phone?: string;
+  secondaryPhone?: string;
   address?: string;
   aliases?: string; // Known as (e.g. "Mom, Nana, Beth")
   aiContext?: string; // Special instructions for AI agents

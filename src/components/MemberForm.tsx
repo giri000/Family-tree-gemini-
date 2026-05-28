@@ -49,6 +49,7 @@ export function MemberForm({
   const [occupation, setOccupation] = useState('');
   const [notes, setNotes] = useState('');
   const [avatarColor, setAvatarColor] = useState('bg-indigo-600 text-white');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   // Relational states
   const [fatherId, setFatherId] = useState('');
@@ -58,6 +59,7 @@ export function MemberForm({
   // AI & Contact States
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [secondaryPhone, setSecondaryPhone] = useState('');
   const [address, setAddress] = useState('');
   const [aliases, setAliases] = useState('');
   const [aiContext, setAiContext] = useState('');
@@ -77,11 +79,13 @@ export function MemberForm({
       setOccupation(member.occupation || '');
       setNotes(member.notes || '');
       setAvatarColor(member.avatarColor || 'bg-indigo-600 text-white');
+      setAvatarUrl(member.avatarUrl || '');
       setFatherId(member.fatherId || '');
       setMotherId(member.motherId || '');
       setSpouseId(member.spouseId || '');
       setEmail(member.email || '');
       setPhone(member.phone || '');
+      setSecondaryPhone(member.secondaryPhone || '');
       setAddress(member.address || '');
       setAliases(member.aliases || '');
       setAiContext(member.aiContext || '');
@@ -99,12 +103,14 @@ export function MemberForm({
       setNotes('');
       setEmail('');
       setPhone('');
+      setSecondaryPhone('');
       setAddress('');
       setAliases('');
       setAiContext('');
       // Cycle a default random color
       const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)].className;
       setAvatarColor(randomColor);
+      setAvatarUrl('');
 
       // Apply pre-filled relations if passed (e.g., when clicking "Add Mother" from structural node)
       setFatherId(prefilledRelations?.fatherId || '');
@@ -145,8 +151,10 @@ export function MemberForm({
       occupation: occupation.trim() || undefined,
       notes: notes.trim() || undefined,
       avatarColor,
+      avatarUrl: avatarUrl.trim() || undefined,
       email: email.trim() || undefined,
       phone: phone.trim() || undefined,
+      secondaryPhone: secondaryPhone.trim() || undefined,
       address: address.trim() || undefined,
       aliases: aliases.trim() || undefined,
       aiContext: aiContext.trim() || undefined,
@@ -253,6 +261,17 @@ export function MemberForm({
                     />
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Avatar Image URL (Optional)</label>
+                <input
+                  type="url"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  placeholder="https://example.com/photo.jpg"
+                />
               </div>
             </div>
           </div>
@@ -407,6 +426,16 @@ export function MemberForm({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="e.g. +1 (555) 012-3456"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Secondary Phone</label>
+                <input
+                  type="tel"
+                  value={secondaryPhone}
+                  onChange={(e) => setSecondaryPhone(e.target.value)}
+                  placeholder="e.g. +1 (555) 987-6543"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>

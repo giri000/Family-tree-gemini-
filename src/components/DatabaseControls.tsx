@@ -2,25 +2,98 @@ import React, { useRef, useState } from 'react';
 import { FamilyMember } from '../types';
 import { Download, Upload, RefreshCw, Trash2, Database, AlertTriangle, CheckCircle, FileText, Bot, Lock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface DatabaseControlsProps {
   members: FamilyMember[];
   onImport: (importedMembers: FamilyMember[]) => void;
   onClearDatabase: () => void;
-  onResetSampleData: () => void;
 }
 
 export function DatabaseControls({
   members,
   onImport,
   onClearDatabase,
-  onResetSampleData,
 }: DatabaseControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
+  const [wipePassword, setWipePassword] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
+
+  // Disaster Commands
+  const handleWipeDatabase = async () => {
+    if (!wipePassword) return;
+    setIsWiping(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("No authenticated user email found.");
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: wipePassword,
+      });
+
+      if (error) {
+        throw new Error("Incorrect password.");
+      }
+
+      // Password verified!
+      if (confirm('DANGER AREA: This will permanently delete ALL family records in this database, giving you a completely blank setup. Proceed with wipe?')) {
+        onClearDatabase();
+        setImportStatus({ type: 'success', message: 'Lineage database cleared. Starting with a blank canvas.' });
+        setWipePassword('');
+      }
+    } catch (err: any) {
+      setImportStatus({ type: 'error', message: err.message || 'Verification failed.' });
+    } finally {
+      setIsWiping(false);
+      setTimeout(() => setImportStatus(null), 4000);
+    }
+  };
+
+  // Export PDF Document
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.text("Family Tree - Member Registry", 14, 22);
+      
+      doc.setFontSize(11);
+      doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 30);
+      
+      const tableData = members.map(m => {
+        const father = members.find(f => f.id === m.fatherId);
+        const mother = members.find(mo => mo.id === m.motherId);
+        const spouse = members.find(s => s.id === m.spouseId);
+        
+        return [
+          `${m.firstName} ${m.lastName}`.trim(),
+          m.gender || 'Unknown',
+          m.birthDate || 'N/A',
+          m.deathDate || 'Alive',
+          `${father ? father.firstName : '-'} / ${mother ? mother.firstName : '-'}`,
+          spouse ? `${spouse.firstName} ${spouse.lastName}`.trim() : '-'
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 36,
+        head: [['Full Name', 'Gender', 'Birth Date', 'Death Date', 'Parents (F/M)', 'Spouse']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229] } // indigo-600
+      });
+      
+      doc.save(`family_tree_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (e) {
+      alert('Failed to generate PDF report. Please try again.');
+    }
+  };
 
   // Export JSON Database
   const handleExportJSON = () => {
@@ -189,9 +262,17 @@ export function DatabaseControls({
 
         <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto">
           <button
+            id="btn-export-pdf"
+            onClick={handleExportPDF}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
+          >
+            <FileText className="w-4 h-4" /> Export to PDF
+          </button>
+          
+          <button
             id="btn-export-database"
             onClick={handleExportJSON}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
           >
             <Download className="w-4 h-4" /> Export Tree Backup
           </button>
@@ -259,53 +340,33 @@ export function DatabaseControls({
           <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Database Clean Tools</h4>
 
           <div className="space-y-4 flex-1 flex flex-col justify-center">
-            {/* Action 1: Reset Sample */}
-            <div className="flex items-start gap-4">
-              <button
-                id="btn-restore-sample"
-                onClick={() => {
-                  if (confirm('Are you sure you want to restore the default sample tree? This will replace your current edits with the 3-generation sample.')) {
-                    onResetSampleData();
-                    setImportStatus({ type: 'success', message: 'Successfully loaded 3-generation sample family tree.' });
-                    setTimeout(() => setImportStatus(null), 4000);
-                  }
-                }}
-                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg shrink-0 cursor-pointer transition-colors"
-                title="Loads standard sample tree"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <div>
-                <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">Restore Sample Dataset</h5>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Lost? Instantly load our complete 3-generation reference family (The Pendletons) to analyze the visualizer configuration.
-                </p>
-              </div>
-            </div>
-
-            {/* Action 2: Wipe Everything */}
-            <div className="flex items-start gap-4 border-t dark:border-slate-800 pt-4">
-              <button
-                id="btn-clear-database"
-                onClick={() => {
-                  if (confirm('DANGER AREA: This will permanently delete ALL family records in this database, giving you a completely blank setup. Proceed with wipe?')) {
-                    onClearDatabase();
-                    setImportStatus({ type: 'success', message: 'Lineage database cleared. Starting with a blank canvas.' });
-                    setTimeout(() => setImportStatus(null), 4000);
-                  }
-                }}
-                className="p-2 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 rounded-lg shrink-0 cursor-pointer transition-colors"
-                title="Wipe database data"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+            {/* Action 1: Wipe Everything */}
+            <div className="flex flex-col gap-4">
               <div>
                 <h5 className="text-xs font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5" /> Wipe Database Cache
                 </h5>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Completely and permanently delete all registered nodes in the database to build your own family lineage archives from absolute scratch.
+                  Completely and permanently delete all registered nodes in the database to build your own family lineage archives from absolute scratch. Requires authentication to confirm.
                 </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="password"
+                  placeholder="Enter Password to Confirm Wipe"
+                  value={wipePassword}
+                  onChange={(e) => setWipePassword(e.target.value)}
+                  className="w-full px-3 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                />
+                <button
+                  id="btn-clear-database"
+                  onClick={handleWipeDatabase}
+                  disabled={!wipePassword || isWiping}
+                  className="px-4 py-2 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg cursor-pointer transition-colors font-semibold text-sm w-full shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isWiping ? 'Verifying...' : 'Confirm Wipe Database'}
+                </button>
               </div>
             </div>
           </div>

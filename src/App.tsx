@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FamilyMember, ActiveTab } from './types';
-import { SAMPLE_FAMILY } from './sampleData';
 import { FamilyTreeVisualizer } from './components/FamilyTreeVisualizer';
 import { MemberForm } from './components/MemberForm';
 import { FamilyTimeline } from './components/FamilyTimeline';
 import { StatsDashboard } from './components/StatsDashboard';
 import { DatabaseControls } from './components/DatabaseControls';
+import { MemberSearch } from './components/MemberSearch';
+
+// Lucide icons
 import { 
   Users, 
   GitFork, 
@@ -50,6 +52,7 @@ export default function App() {
     motherId?: string;
     spouseId?: string;
   } | undefined>(undefined);
+  const [pendingParentLink, setPendingParentLink] = useState<{ childId: string; role: 'father' | 'mother' } | undefined>(undefined);
 
   // 1. Supabase Initialization & Realtime Subscription
   useEffect(() => {
@@ -132,12 +135,28 @@ export default function App() {
       if (exSpouse) updatables.push(mapToDb({ ...exSpouse, spouseId: undefined }));
     }
 
+    // Handle pending parent link
+    if (isNew && pendingParentLink) {
+      const childIndex = updatedMembers.findIndex((m) => m.id === pendingParentLink.childId);
+      if (childIndex !== -1) {
+        const child = { ...updatedMembers[childIndex] };
+        if (pendingParentLink.role === 'father') {
+          child.fatherId = savedMember.id;
+        } else if (pendingParentLink.role === 'mother') {
+          child.motherId = savedMember.id;
+        }
+        updatables.push(mapToDb(child));
+        updatedMembers[childIndex] = child;
+      }
+    }
+
     // Set immediate pessimistic local state for instantaneous feel
     setMembers(updatedMembers);
     setFocusMemberId(savedMember.id);
     setShowForm(false);
     setEditingMember(null);
     setPrefilledRelations(undefined);
+    setPendingParentLink(undefined);
 
     // Push to Supabase asynchronously
     try {
@@ -162,6 +181,7 @@ export default function App() {
     setShowForm(false);
     setEditingMember(null);
     setPrefilledRelations(undefined);
+    setPendingParentLink(undefined);
 
     const updatedMembers = members.filter(m => m.id !== id).map(m => {
       let patch = { ...m };
@@ -205,14 +225,12 @@ export default function App() {
 
     switch (relationType) {
       case 'father':
-        relations = { spouseId: relative.motherId }; // Father is spouse to target's mother
-        // Target's fatherId will be hooked when the target's configuration registers this new person.
-        // To do this simply, we will open a new member form where we prefill that they are the FATHER of relativeToId!
-        // So let's handle setting the form up:
-        setPrefilledRelations({ spouseId: relative.motherId });
+        relations = { spouseId: relative.motherId };
+        setPendingParentLink({ childId: relative.id, role: 'father' });
         break;
       case 'mother':
-        relations = { spouseId: relative.fatherId }; // Mother is spouse to target's father
+        relations = { spouseId: relative.fatherId };
+        setPendingParentLink({ childId: relative.id, role: 'mother' });
         break;
       case 'spouse':
         relations = { spouseId: relative.id };
@@ -345,24 +363,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             {members.length > 0 && (
               <div className="flex items-center gap-2 mr-2">
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hidden sm:inline">Focus:</span>
-                <select
-                  id="select-tree-focus-member-header"
-                  value={focusMemberId}
-                  onChange={(e) => {
-                    setFocusMemberId(e.target.value);
+                <MemberSearch
+                  members={members}
+                  currentFocusId={focusMemberId}
+                  onSelect={(id) => {
+                    setFocusMemberId(id);
                     if (activeTab !== 'tree') setActiveTab('tree');
                   }}
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2.5 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-[180px] truncate"
-                >
-                  {members
-                    .sort((a, b) => a.firstName.localeCompare(b.firstName))
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                </select>
+                />
               </div>
             )}
             <ThemeToggle />
@@ -379,6 +387,7 @@ export default function App() {
               onClick={() => {
                 setEditingMember(null);
                 setPrefilledRelations(undefined);
+                setPendingParentLink(undefined);
                 setShowForm(true);
               }}
               className="flex items-center justify-center w-10 h-10 text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-xl transition-all shadow-xs cursor-pointer select-none"
@@ -402,38 +411,19 @@ export default function App() {
             <div>
               <h3 className="text-lg font-serif font-semibold text-slate-800 dark:text-slate-100">Archive Vault is Blank</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">
-                You currently have no registered family members inside your local database. You can start fresh or quickly populate the system with a complete pre-configured sample lineage to see it in action.
+                You currently have no registered family members inside your local database. Start creating your family lineage archives from absolute scratch.
               </p>
             </div>
             <div className="flex flex-col gap-2 pt-2">
-              <button
-                id="btn-load-sample-empty"
-                onClick={async () => {
-                  const mapped = SAMPLE_FAMILY.map(mapToDb);
-                  try {
-                    const { error } = await supabase.from('family_members').upsert(mapped).select();
-                    if (error) {
-                       console.error('Supabase load sample error:', error);
-                       return;
-                    }
-                    setMembers(SAMPLE_FAMILY);
-                    setFocusMemberId('11111111-1111-4111-a111-111111111118');
-                  } catch (err: any) {
-                    console.error('Client error loading sample:', err);
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-lg text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 cursor-pointer shadow-sm transition-colors"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-250 dark:text-indigo-200" /> Load 3-Gen Sample Family Tree
-              </button>
               <button
                 id="btn-add-initial-member"
                 onClick={() => {
                   setEditingMember(null);
                   setPrefilledRelations(undefined);
+                  setPendingParentLink(undefined);
                   setShowForm(true);
                 }}
-                className="w-full px-4 py-2.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                className="w-full px-4 py-2.5 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm transition-colors"
               >
                 Create New Member Record from Scratch
               </button>
@@ -451,6 +441,7 @@ export default function App() {
                   onEdit={(member) => {
                     setEditingMember(member);
                     setPrefilledRelations(undefined);
+                    setPendingParentLink(undefined);
                     setShowForm(true);
                   }}
                   onAddRelation={handleAddRelation}
@@ -599,6 +590,7 @@ export default function App() {
                               onClick={() => {
                                 setEditingMember(member);
                                 setPrefilledRelations(undefined);
+                                setPendingParentLink(undefined);
                                 setShowForm(true);
                               }}
                               className="text-[10px] font-semibold text-center hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg py-1 hover:text-slate-700 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400 cursor-pointer transition-colors"
@@ -698,20 +690,6 @@ export default function App() {
                        }
                     }
                   }}
-                  onResetSampleData={async () => {
-                    const mapped = SAMPLE_FAMILY.map(mapToDb);
-                    setMembers(SAMPLE_FAMILY);
-                    try {
-                      const { error } = await supabase.from('family_members').upsert(mapped).select();
-                      if (error) {
-                        console.error('Supabase load sample error:', error);
-                      }
-                    } catch (err: any) {
-                      console.error('Client error loading sample:', err);
-                    }
-                    setFocusMemberId('11111111-1111-4111-a111-111111111118');
-                    setActiveTab('tree');
-                  }}
                 />
               </div>
             )}
@@ -730,6 +708,7 @@ export default function App() {
             setShowForm(false);
             setEditingMember(null);
             setPrefilledRelations(undefined);
+            setPendingParentLink(undefined);
           }}
           prefilledRelations={prefilledRelations}
         />

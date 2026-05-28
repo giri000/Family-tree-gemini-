@@ -62,7 +62,7 @@ export function MemberCard({
   return (
     <div
       id={`member-card-${member.id}`}
-      className={`relative w-48 rounded-xl border p-3 flex flex-col items-center text-center transition-all duration-300 cursor-pointer ${genderBorder} ${focusClass}`}
+      className={`group relative w-48 rounded-xl border p-3 flex flex-col items-center text-center transition-all duration-300 cursor-pointer ${genderBorder} ${focusClass}`}
       onClick={() => onFocus(member.id)}
     >
       {/* Target/Focus Banner inside card */}
@@ -72,9 +72,13 @@ export function MemberCard({
         </span>
       )}
 
-      {/* Avatar containing first letter of name */}
-      <div className={`mt-1.5 w-12 h-12 rounded-full flex items-center justify-center font-serif text-lg font-bold shadow-xs ${member.avatarColor || 'bg-slate-500 text-white'}`}>
-        {initials || <User className="w-5 h-5" />}
+      {/* Avatar */}
+      <div className={`mt-1.5 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center font-serif text-lg font-bold shadow-xs ${member.avatarUrl ? 'bg-slate-200 dark:bg-slate-800' : (member.avatarColor || 'bg-slate-500 text-white')}`}>
+        {member.avatarUrl ? (
+          <img src={member.avatarUrl} alt={`${member.firstName} ${member.lastName}`} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
+        ) : (
+          initials || <User className="w-5 h-5" />
+        )}
       </div>
 
       {/* Name */}
@@ -121,7 +125,7 @@ export function MemberCard({
       </div>
 
       {/* Quick Toolbar overlay */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+      <div className="absolute top-2 right-2 flex gap-1 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
         <button
           id={`btn-edit-${member.id}`}
           title="Edit member details"
@@ -133,11 +137,6 @@ export function MemberCard({
         >
           <Pencil className="w-3 h-3" />
         </button>
-      </div>
-
-      {/* Subtle Hint on hover at the bottom */}
-      <div className="mt-2 text-[9px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-        Click to focus tree
       </div>
     </div>
   );

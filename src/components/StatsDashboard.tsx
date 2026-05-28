@@ -242,8 +242,12 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
                   className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-150 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-all"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${member.avatarColor}`}>
-                      {member.firstName[0]}
+                    <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 ${member.avatarUrl ? 'bg-slate-200 dark:bg-slate-800' : member.avatarColor}`}>
+                      {member.avatarUrl ? (
+                         <img src={member.avatarUrl} alt={member.firstName} className="w-full h-full object-cover" crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                      ) : (
+                         member.firstName[0]
+                      )}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 truncate max-w-[130px]">
