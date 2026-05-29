@@ -88,11 +88,31 @@ export default function App() {
         setMembers(parsed);
         setFocusMemberId(prev => {
           if (!prev && parsed.length > 0) {
-            const giri = parsed.find(m => 
-              m.id === 'db0ed3db-fb87-4573-8966-2322428f51e7' || 
-              m.email === 'giriprasath51@gmail.com' || 
-              (m.firstName && m.firstName.toLowerCase().includes('giri'))
-            );
+            const giri = (() => {
+              // 1. Look for exact full name "giri prasath s p"
+              let match = parsed.find(m => `${m.firstName || ''} ${m.lastName || ''}`.trim().toLowerCase() === 'giri prasath s p');
+              if (match) return match;
+
+              // 2. Look for "giri prasath" in full name
+              match = parsed.find(m => `${m.firstName || ''} ${m.lastName || ''}`.trim().toLowerCase().includes('giri prasath'));
+              if (match) return match;
+
+              // 3. Look for email match
+              match = parsed.find(m => m.email === 'giriprasath51@gmail.com');
+              if (match) return match;
+
+              // 4. Look for exact first name "giri"
+              match = parsed.find(m => (m.firstName || '').trim().toLowerCase() === 'giri');
+              if (match) return match;
+
+              // 5. Look for id
+              match = parsed.find(m => m.id === 'db0ed3db-fb87-4573-8966-2322428f51e7');
+              if (match) return match;
+
+              // 6. Generic includes "giri"
+              match = parsed.find(m => (m.firstName || '').toLowerCase().includes('giri'));
+              return match;
+            })();
             return giri?.id || parsed.find(m => m.id === '11111111-1111-4111-a111-111111111118')?.id || parsed[0].id;
           }
           return prev;
@@ -352,7 +372,7 @@ export default function App() {
     <AuthGuard userEmailToLock="giriprasath51@gmail.com">
       <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col font-sans antialiased">
         {dbError && (
-          <div className="bg-rose-600 text-white text-xs py-2.5 px-4 text-center font-semibold flex items-center justify-center gap-2 shadow-md animate-pulse">
+          <div className="fixed top-0 left-0 right-0 z-50 bg-rose-600 text-white text-xs py-2.5 px-4 text-center font-semibold flex items-center justify-center gap-2 shadow-md animate-pulse">
             <span>⚠️ Supabase Connection/RLS Issue: {dbError}</span>
             <button 
               onClick={() => window.location.reload()} 
@@ -364,22 +384,19 @@ export default function App() {
         )}
         
         {dbWarnings.length > 0 && (
-          <div className="bg-amber-500 text-slate-900 text-xs py-3 px-6 font-semibold flex flex-col lg:flex-row items-center justify-between gap-3 shadow-md animate-fade-in border-b border-amber-600/30">
+          <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-slate-900 text-xs py-3 px-6 font-semibold flex flex-col lg:flex-row items-center justify-between gap-3 shadow-md animate-fade-in border-b border-amber-600/30">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-slate-900 shrink-0" />
               <span>
-                <strong>Database Schema Outdated:</strong> Your Supabase table is missing the columns: <code className="bg-amber-600/20 px-1 py-0.5 rounded text-slate-950 font-serif">{dbWarnings.join(', ')}</code>. Blood groups and second phone numbers are being omitted during saves to prevent database crashes. Run this SQL in your Supabase SQL Editor:
+                <strong>Database Schema Outdated:</strong> Your Supabase table is missing columns: <code className="bg-amber-600/20 px-1 py-0.5 rounded text-slate-950 font-serif">{dbWarnings.join(', ')}</code>. Blood groups/phones are omitted on saves to prevent database crashes. Run SQL in SQL Editor.
               </span>
             </div>
             <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto justify-end">
-              <code className="bg-slate-950 text-amber-350 font-mono text-[10px] py-1.5 px-3 rounded border border-slate-800 select-all max-w-sm truncate lg:max-w-none">
-                {`ALTER TABLE public.family_members ${dbWarnings.map(col => `ADD COLUMN IF NOT EXISTS ${col} text`).join(', ')};`}
-              </code>
               <button 
                 onClick={() => {
                   const sql = `ALTER TABLE public.family_members ${dbWarnings.map(col => `ADD COLUMN IF NOT EXISTS ${col} text`).join(', ')};`;
                   navigator.clipboard.writeText(sql);
-                  alert('Schema migration SQL copied to clipboard! Paste and run it in your Supabase SQL Editor to enable saving.');
+                  alert('Schema migration SQL copied to clipboard! Paste and run in SQL Editor.');
                 }}
                 className="bg-slate-950 hover:bg-slate-900 text-amber-300 font-bold px-3 py-1.5 rounded-full text-[10px] border border-slate-800 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
               >
@@ -388,9 +405,10 @@ export default function App() {
             </div>
           </div>
         )}
+
       {/* Editorial Navigation Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/80 sticky top-0 z-40 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col xl:flex-row items-center justify-between gap-3">
           
           {/* Brand Logo & Heirloom styling - M3 Small Container shape */}
           <div className="flex items-center gap-3">
@@ -405,14 +423,14 @@ export default function App() {
           </div>
 
           {/* Tab Selection - MD3 Segmented Button / Pill Layout */}
-          <div className="w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
-            <nav className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-950/80 p-1.5 rounded-full border border-slate-200/60 dark:border-slate-800/80 text-xs font-semibold text-slate-600 dark:text-slate-400 w-max md:w-auto mx-auto md:mx-0 transition-all shadow-xs">
+          <div className="w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0 hide-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
+            <nav className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-950/80 p-1.5 rounded-full border border-slate-200/60 dark:border-slate-800/80 text-xs font-semibold text-slate-600 dark:text-slate-400 w-max xl:w-auto mx-auto xl:mx-0 transition-all shadow-xs">
               <button
                 id="tab-btn-tree"
                 onClick={() => setActiveTab('tree')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'tree'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -424,7 +442,7 @@ export default function App() {
                 onClick={() => setActiveTab('constellation')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'constellation'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -436,7 +454,7 @@ export default function App() {
                 onClick={() => setActiveTab('members')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'members'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -448,7 +466,7 @@ export default function App() {
                 onClick={() => setActiveTab('timeline')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'timeline'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -460,7 +478,7 @@ export default function App() {
                 onClick={() => setActiveTab('stats')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'stats'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -472,7 +490,7 @@ export default function App() {
                 onClick={() => setActiveTab('database')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'database'
-                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30'
                     : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
@@ -502,7 +520,7 @@ export default function App() {
             <button
               onClick={() => supabase.auth.signOut()}
               title="Lock Vault"
-              className="flex items-center justify-center w-10 h-10 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100/85 dark:hover:bg-rose-900/55 border border-rose-100 dark:border-rose-900/50 rounded-2xl transition-all shadow-xs hover:shadow-md cursor-pointer select-none active:scale-95"
+              className="flex items-center justify-center w-10 h-10 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100/85 dark:hover:bg-rose-900/55 border border-rose-100 dark:border-rose-900/50 rounded-2xl transition-all shadow-xs hover:shadow-md cursor-pointer select-none active:scale-95 animate-fade-in"
             >
               <LogOut className="w-4.5 h-4.5" />
             </button>
@@ -524,7 +542,7 @@ export default function App() {
       </header>
 
       {/* Main body canvas */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* Dynamic content rendering */}
         {members.length === 0 ? (
@@ -894,6 +912,24 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* M3 Floating Action Button (FAB) */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          id="m3-fab-add-member"
+          onClick={() => {
+            setEditingMember(null);
+            setPrefilledRelations(undefined);
+            setPendingParentLink(undefined);
+            setShowForm(true);
+          }}
+          title="Add new family member"
+          className="flex items-center gap-2 px-4.5 py-4 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-[20px] transition-all duration-300 shadow-[0px_4px_8px_3px_rgba(0,0,0,0.15)] hover:shadow-[0px_6px_10px_4px_rgba(0,0,0,0.25)] active:scale-95 group cursor-pointer select-none border-none font-bold text-xs tracking-wider uppercase md:normal-case md:text-sm md:font-semibold"
+        >
+          <Plus className="w-5.5 h-5.5 transition-transform duration-300 group-hover:rotate-90 text-white shrink-0" />
+          <span className="hidden sm:inline font-semibold pr-1">Add Family Member</span>
+        </button>
+      </div>
 
       {/* Slide overlay / Card edit modal */}
       {showForm && (

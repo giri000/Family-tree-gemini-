@@ -3,8 +3,70 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  /* Dynamic M3 Color System Variables (Light Mode) */
+  --md-sys-color-primary: #4F46E5;
+  --md-sys-color-on-primary: #FFFFFF;
+  --md-sys-color-primary-container: #E0E0FF;
+  --md-sys-color-on-primary-container: #0F0060;
+  --md-sys-color-secondary: #5B5D72;
+  --md-sys-color-on-secondary: #FFFFFF;
+  --md-sys-color-secondary-container: #E0E1F9;
+  --md-sys-color-on-secondary-container: #181A2C;
+  --md-sys-color-tertiary: #7B5264;
+  --md-sys-color-on-tertiary: #FFFFFF;
+  --md-sys-color-tertiary-container: #FFD8E6;
+  --md-sys-color-on-tertiary-container: #301120;
+  --md-sys-color-error: #BA1A1A;
+  --md-sys-color-on-error: #FFFFFF;
+  --md-sys-color-error-container: #FFDAD6;
+  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-background: #F8F9FA;
+  --md-sys-color-on-background: #1A1C1E;
+  --md-sys-color-surface: #FFFFFF;
+  --md-sys-color-on-surface: #1A1C1E;
+  --md-sys-color-surface-variant: #E1E2EC;
+  --md-sys-color-on-surface-variant: #44464F;
+  --md-sys-color-outline: #757780;
+  --md-sys-color-outline-variant: #C5C6D0;
+  --md-sys-color-inverse-surface: #2F3033;
+  --md-sys-color-inverse-on-surface: #F1F0F4;
+  --md-sys-color-inverse-primary: #BAC3FF;
+
+  color-scheme: light;
+}
+
 .dark {
-  /* True Pure/OLED Black Dark Mode Overrides */
+  /* Dynamic M3 Color System Variables (Dark Mode) */
+  --md-sys-color-primary: #BAC3FF;
+  --md-sys-color-on-primary: #111441;
+  --md-sys-color-primary-container: #372FBA;
+  --md-sys-color-on-primary-container: #E0E0FF;
+  --md-sys-color-secondary: #C4C5DD;
+  --md-sys-color-on-secondary: #2D2F42;
+  --md-sys-color-secondary-container: #444559;
+  --md-sys-color-on-secondary-container: #E0E1F9;
+  --md-sys-color-tertiary: #EBA1C1;
+  --md-sys-color-on-tertiary: #482535;
+  --md-sys-color-tertiary-container: #613B4C;
+  --md-sys-color-on-tertiary-container: #FFD8E6;
+  --md-sys-color-error: #FFB4AB;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000A;
+  --md-sys-color-on-error-container: #FFDAD6;
+  --md-sys-color-background: #09090b;
+  --md-sys-color-on-background: #E2E2E6;
+  --md-sys-color-surface: #121214;
+  --md-sys-color-on-surface: #E2E2E6;
+  --md-sys-color-surface-variant: #44464F;
+  --md-sys-color-on-surface-variant: #C5C6D0;
+  --md-sys-color-outline: #8F909A;
+  --md-sys-color-outline-variant: #44464F;
+  --md-sys-color-inverse-surface: #E2E2E6;
+  --md-sys-color-inverse-on-surface: #1A1C1E;
+  --md-sys-color-inverse-primary: #4F46E5;
+
+  /* True Pure/OLED Black Dark Mode Overrides for compatibility */
   --color-slate-950: #000000;
   --color-slate-910: #050506;
   --color-slate-900: #09090b;
@@ -26,13 +88,175 @@
   --color-slate-105: #212124;
   --color-slate-100: #f4f4f5;
   --color-slate-50: #18181b;
-  
+
   color-scheme: dark;
 }
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: "Playfair Display", Georgia, Cambria, serif;
+
+  /* Map Tailwind V4 theme to M3 Design System CSS Variables */
+  --color-primary: var(--md-sys-color-primary);
+  --color-on-primary: var(--md-sys-color-on-primary);
+  --color-primary-container: var(--md-sys-color-primary-container);
+  --color-on-primary-container: var(--md-sys-color-on-primary-container);
+  --color-secondary: var(--md-sys-color-secondary);
+  --color-on-secondary: var(--md-sys-color-on-secondary);
+  --color-secondary-container: var(--md-sys-color-secondary-container);
+  --color-on-secondary-container: var(--md-sys-color-on-secondary-container);
+  --color-tertiary: var(--md-sys-color-tertiary);
+  --color-on-tertiary: var(--md-sys-color-on-tertiary);
+  --color-tertiary-container: var(--md-sys-color-tertiary-container);
+  --color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
+  --color-background-m3: var(--md-sys-color-background);
+  --color-on-background-m3: var(--md-sys-color-on-background);
+  --color-surface-m3: var(--md-sys-color-surface);
+  --color-on-surface-m3: var(--md-sys-color-on-surface);
+  --color-surface-variant-m3: var(--md-sys-color-surface-variant);
+  --color-on-surface-variant-m3: var(--md-sys-color-on-surface-variant);
+  --color-outline-m3: var(--md-sys-color-outline);
+  --color-outline-variant-m3: var(--md-sys-color-outline-variant);
+}
+
+/* Material Design 3 Helper Utility Classes */
+.m3-btn-filled {
+  border-radius: 9999px;
+  padding: 10px 24px;
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  cursor: pointer;
+  user-select: none;
+  border: none;
+}
+.m3-btn-filled:hover {
+  filter: brightness(0.95);
+  box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+.m3-btn-filled:active {
+  transform: scale(0.98);
+}
+
+.m3-btn-tonal {
+  border-radius: 9999px;
+  padding: 10px 24px;
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  cursor: pointer;
+  user-select: none;
+  border: none;
+}
+.m3-btn-tonal:hover {
+  filter: brightness(0.92);
+  box-shadow: 0px 1px 2px rgba(0,0,0,0.1);
+}
+.m3-btn-tonal:active {
+  transform: scale(0.98);
+}
+
+.m3-btn-outlined {
+  border-radius: 9999px;
+  padding: 9px 23px;
+  background-color: transparent;
+  color: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-outline);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  cursor: pointer;
+  user-select: none;
+}
+.m3-btn-outlined:hover {
+  background-color: rgba(79, 70, 229, 0.08);
+  border-color: var(--md-sys-color-primary);
+}
+.m3-btn-outlined:active {
+  transform: scale(0.98);
+}
+
+.m3-btn-elevated {
+  border-radius: 9999px;
+  padding: 10px 24px;
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-primary);
+  box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  cursor: pointer;
+  user-select: none;
+  border: none;
+}
+.m3-btn-elevated:hover {
+  background-color: rgba(79, 70, 229, 0.04);
+  box-shadow: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+}
+.m3-btn-elevated:active {
+  transform: scale(0.98);
+}
+
+/* M3 Card Types */
+.m3-card-elevated {
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  border-radius: 12px;
+  box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+  transition: box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.25s ease-out;
+}
+.m3-card-elevated:hover {
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30);
+}
+
+.m3-card-outlined {
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  border-radius: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
+}
+.m3-card-outlined:hover {
+  border-color: var(--md-sys-color-outline);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.m3-card-filled {
+  background-color: var(--md-sys-color-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  border-radius: 12px;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.m3-card-filled:hover {
+  filter: brightness(0.97);
 }
 
 @layer utilities {
@@ -51,4 +275,3 @@
     animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }
-

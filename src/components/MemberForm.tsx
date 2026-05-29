@@ -191,7 +191,7 @@ export function MemberForm({
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-xs sm:p-4 overflow-y-auto animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl sm:border border-slate-100 dark:border-slate-800 max-w-2xl w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-slate-900 sm:rounded-[28px] shadow-2xl sm:border border-slate-100 dark:border-slate-800 max-w-2xl w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-hidden flex flex-col transition-all">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
           <div>
