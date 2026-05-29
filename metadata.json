@@ -1,5 +1,5 @@
 {
-  "name": "Family Tree Editor",
+  "name": "Kinship Trace",
   "description": "An intuitive, easy-to-use family tree builder that allows users of all ages to visualize family connections, manage relationships, and export or import family data.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

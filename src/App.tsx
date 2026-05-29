@@ -6,6 +6,8 @@ import { FamilyTimeline } from './components/FamilyTimeline';
 import { StatsDashboard } from './components/StatsDashboard';
 import { DatabaseControls } from './components/DatabaseControls';
 import { MemberSearch } from './components/MemberSearch';
+import { FamilyNetworkGraph } from './components/FamilyNetworkGraph';
+import { DuplicateFinder } from './components/DuplicateFinder';
 
 // Lucide icons
 import { 
@@ -24,10 +26,11 @@ import {
   Sparkles,
   BookOpen,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Network
 } from 'lucide-react';
 
-import { supabase, mapToDb, mapFromDb, isSupabaseConfigured } from './lib/supabase';
+import { supabase, mapToDb, mapFromDb, isSupabaseConfigured, safeUpsert } from './lib/supabase';
 import { SupabaseSetup } from './components/SupabaseSetup';
 
 import { AuthGuard } from './components/AuthGuard';
@@ -43,6 +46,9 @@ export default function App() {
   const [memberSearch, setMemberSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [lifespanFilter, setLifespanFilter] = useState<string>('all');
+  const [directorySort, setDirectorySort] = useState<string>('name-asc');
+  const [showDuplicateFinder, setShowDuplicateFinder] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Form Modal States
   const [showForm, setShowForm] = useState(false);
@@ -59,9 +65,11 @@ export default function App() {
     if (!isConfigured) return;
 
     const fetchMembers = async () => {
+      setDbError(null);
       const { data, error } = await supabase.from('family_members').select('*');
       if (error) {
         console.error('Supabase fetch error:', error);
+        setDbError(error.message);
         return;
       }
       if (data) {
@@ -150,6 +158,21 @@ export default function App() {
       }
     }
 
+    try {
+      if (isConfigured) {
+        const { error } = await safeUpsert(updatables, true);
+        if (error) {
+          console.error('Supabase upsert error:', error);
+          alert(`Database save failed: ${error.message}`);
+          return; // Don't proceed to update UI if backend failed
+        }
+      }
+    } catch (err: any) {
+      console.error('Supabase client error:', err);
+      alert(`Client save failed: ${err.message}`);
+      return;
+    }
+
     // Set immediate pessimistic local state for instantaneous feel
     setMembers(updatedMembers);
     setFocusMemberId(savedMember.id);
@@ -157,23 +180,40 @@ export default function App() {
     setEditingMember(null);
     setPrefilledRelations(undefined);
     setPendingParentLink(undefined);
-
-    // Push to Supabase asynchronously
-    try {
-      if (isConfigured) {
-        // Adding .select() guarantees that if RLS is active and blocks the write, it will throw an error immediately here.
-        const { error } = await supabase.from('family_members').upsert(updatables).select();
-        if (error) {
-          console.error('Supabase upsert error:', error);
-        }
-      }
-    } catch (err: any) {
-      console.error('Supabase client error:', err);
-    }
   };
 
   // 5. Async Supabase Delete
   const handleDeleteMember = async (id: string) => {
+    try {
+      if (isConfigured) {
+        const { error: delError } = await supabase.from('family_members').delete().eq('id', id);
+        if (delError) {
+          alert(`Delete failed: ${delError.message}`);
+          return;
+        }
+
+        // Clean up references in other members
+        const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
+          let patch = { ...m };
+          if (patch.fatherId === id) patch.fatherId = undefined;
+          if (patch.motherId === id) patch.motherId = undefined;
+          if (patch.spouseId === id) patch.spouseId = undefined;
+          return mapToDb(patch);
+        });
+
+        if (updatables.length > 0) {
+          const { error: upsertError } = await safeUpsert(updatables);
+          if (upsertError) {
+            console.error('Reference cleanup error:', upsertError);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Delete error', err);
+      alert(`Delete error: ${err.message}`);
+      return;
+    }
+
     // Re-focus immediately
     if (focusMemberId === id) {
       const remaining = members.filter(m => m.id !== id);
@@ -194,27 +234,6 @@ export default function App() {
     });
 
     setMembers(updatedMembers);
-
-    try {
-      if (isConfigured) {
-        await supabase.from('family_members').delete().eq('id', id);
-
-        // Clean up references in other members
-        const updatables = members.filter(m => m.fatherId === id || m.motherId === id || m.spouseId === id).map(m => {
-          let patch = { ...m };
-          if (patch.fatherId === id) patch.fatherId = undefined;
-          if (patch.motherId === id) patch.motherId = undefined;
-          if (patch.spouseId === id) patch.spouseId = undefined;
-          return mapToDb(patch);
-        });
-
-        if (updatables.length > 0) {
-          await supabase.from('family_members').upsert(updatables);
-        }
-      }
-    } catch (err: any) {
-      console.error('Delete error', err);
-    }
   };
 
   // 6. Quick Action to add relations from Tree placeholders
@@ -260,7 +279,7 @@ export default function App() {
     // when we save, if the user explicitly assigns fatherId or motherId, the links automatically form.
   };
 
-  // 7. Directory List Filters
+  // 7. Directory List Filters and Active Sorting
   const filteredDirectoryMembers = members.filter((m) => {
     const fullName = `${m.firstName} ${m.lastName || ''}`.toLowerCase();
     const matchesSearch = fullName.includes(memberSearch.toLowerCase()) || 
@@ -276,11 +295,51 @@ export default function App() {
       : m.isDeceased;
 
     return matchesSearch && matchesGender && matchesLifespan;
+  }).sort((a, b) => {
+    const [field, direction] = directorySort.split('-');
+    const isAsc = direction === 'asc';
+
+    if (field === 'name') {
+      const nameA = `${a.firstName} ${a.lastName || ''}`.trim().toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName || ''}`.trim().toLowerCase();
+      return isAsc ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    }
+
+    if (field === 'created') {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return isAsc ? timeA - timeB : timeB - timeA;
+    }
+
+    if (field === 'edited') {
+      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return isAsc ? timeA - timeB : timeB - timeA;
+    }
+
+    if (field === 'dob') {
+      const timeA = a.birthDate ? new Date(a.birthDate).getTime() : (isAsc ? Infinity : -Infinity);
+      const timeB = b.birthDate ? new Date(b.birthDate).getTime() : (isAsc ? Infinity : -Infinity);
+      return isAsc ? timeA - timeB : timeB - timeA;
+    }
+
+    return 0;
   });
 
   return (
     <AuthGuard userEmailToLock="giriprasath51@gmail.com">
       <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col font-sans antialiased">
+        {dbError && (
+          <div className="bg-rose-600 text-white text-xs py-2.5 px-4 text-center font-semibold flex items-center justify-center gap-2 shadow-md animate-pulse">
+            <span>⚠️ Supabase Connection/RLS Issue: {dbError}</span>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-white/20 hover:bg-white/30 text-white rounded px-2.5 py-0.5 ml-2 font-bold transition focus:outline-none"
+            >
+              Retry Sync
+            </button>
+          </div>
+        )}
       {/* Editorial Navigation Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -311,6 +370,18 @@ export default function App() {
               >
                 <GitFork className="w-3.5 h-3.5 rotate-90" />
                 <span>Interactive Tree</span>
+              </button>
+              <button
+                id="tab-btn-constellation"
+                onClick={() => setActiveTab('constellation')}
+                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'constellation'
+                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
+                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span>Kinship Constellation</span>
               </button>
               <button
                 id="tab-btn-members"
@@ -372,7 +443,9 @@ export default function App() {
                   currentFocusId={focusMemberId}
                   onSelect={(id) => {
                     setFocusMemberId(id);
-                    if (activeTab !== 'tree') setActiveTab('tree');
+                    if (activeTab !== 'tree' && activeTab !== 'constellation') {
+                      setActiveTab('tree');
+                    }
                   }}
                 />
               </div>
@@ -453,6 +526,20 @@ export default function App() {
               </div>
             )}
 
+            {/* TAB 1.5: KINSHIP CONSTELLATION */}
+            {activeTab === 'constellation' && (
+              <div className="space-y-4">
+                <FamilyNetworkGraph
+                  members={members}
+                  focusedMemberId={focusMemberId}
+                  onFocusMember={(id) => {
+                    setFocusMemberId(id);
+                    setActiveTab('tree');
+                  }}
+                />
+              </div>
+            )}
+
             {/* TAB 2: MEMBER DIRECTORY / GALLERY */}
             {activeTab === 'members' && (
               <div className="space-y-6">
@@ -501,6 +588,34 @@ export default function App() {
                         <option value="deceased">Deceased Only</option>
                       </select>
                     </div>
+
+                    {/* Sorting categories requested: name, created, edited, date of birth */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Sort By:</span>
+                      <select
+                        id="select-sort-directory"
+                        value={directorySort}
+                        onChange={(e) => setDirectorySort(e.target.value)}
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
+                      >
+                        <option value="name-asc font-semibold">Name (A-Z)</option>
+                        <option value="name-desc font-semibold">Name (Z-A)</option>
+                        <option value="created-desc font-semibold">Date Added (Newest)</option>
+                        <option value="created-asc font-semibold">Date Added (Oldest)</option>
+                        <option value="edited-desc font-semibold">Latest Edited</option>
+                        <option value="dob-asc font-semibold">DOB (Oldest first)</option>
+                        <option value="dob-desc font-semibold">DOB (Newest first)</option>
+                      </select>
+                    </div>
+
+                    {/* Duplicate Finder Button */}
+                    <button
+                      id="btn-show-duplicate-finder"
+                      onClick={() => setShowDuplicateFinder(true)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-950/45 text-indigo-700 dark:text-indigo-400 cursor-pointer transition flex items-center gap-1"
+                    >
+                      <span>🔍</span> <span>Find Duplicates</span>
+                    </button>
 
                     {/* Active list counter */}
                     <div className="text-xs font-medium text-slate-400 font-mono ml-auto md:ml-0">
@@ -670,51 +785,44 @@ export default function App() {
                   members={members}
                   onImport={async (importedMembers) => {
                     if (importedMembers.length > 0) {
-                      try {
-                        // Optimistic local state update
-                        setMembers(prev => {
-                          const newMembers = [...prev];
-                          for (const member of importedMembers) {
-                            const existingIdx = newMembers.findIndex(m => m.id === member.id);
-                            if (existingIdx > -1) {
-                              newMembers[existingIdx] = member;
-                            } else {
-                              newMembers.push(member);
-                            }
-                          }
-                          return newMembers;
-                        });
-
-                        setFocusMemberId(importedMembers[0].id);
-                        setActiveTab('tree');
-
-                        if (isConfigured) {
-                          const mapped = importedMembers.map(mapToDb);
-                          const { error } = await supabase.from('family_members').upsert(mapped).select();
-                          if (error) {
-                             console.error('Import error', error);
+                      if (isConfigured) {
+                        const mapped = importedMembers.map(mapToDb);
+                        const { error } = await safeUpsert(mapped, true);
+                        if (error) {
+                           console.error('Import error', error);
+                           throw new Error(`Database error: ${error.message}`);
+                        }
+                      }
+                      
+                      // Optimistic local state update after successful DB commit
+                      setMembers(prev => {
+                        const newMembers = [...prev];
+                        for (const member of importedMembers) {
+                          const existingIdx = newMembers.findIndex(m => m.id === member.id);
+                          if (existingIdx > -1) {
+                            newMembers[existingIdx] = member;
+                          } else {
+                            newMembers.push(member);
                           }
                         }
-                      } catch (err: any) {
-                        console.error('import catch', err);
-                      }
+                        return newMembers;
+                      });
+
+                      setFocusMemberId(importedMembers[0].id);
+                      setActiveTab('tree');
                     }
                   }}
                   onClearDatabase={async () => {
-                    // Wipe all entries from Supabase gracefully by ids
                     if (members.length > 0) {
-                       try {
-                         const ids = members.map(m => m.id);
-                         setMembers([]);
-                         if (isConfigured) {
-                           const { error } = await supabase.from('family_members').delete().in('id', ids);
-                           if (error) {
-                             console.error(`DB_ERROR: ${error.message}`);
-                           }
+                       const ids = members.map(m => m.id);
+                       if (isConfigured) {
+                         const { error } = await supabase.from('family_members').delete().in('id', ids);
+                         if (error) {
+                           console.error(`DB_ERROR: ${error.message}`);
+                           throw new Error(`Database clear failed: ${error.message}`);
                          }
-                       } catch (err: any) {
-                           console.error(`DB_ERROR: ${err.message}`);
                        }
+                       setMembers([]);
                     }
                   }}
                 />
@@ -738,6 +846,15 @@ export default function App() {
             setPendingParentLink(undefined);
           }}
           prefilledRelations={prefilledRelations}
+        />
+      )}
+
+      {/* Duplicate finder modal */}
+      {showDuplicateFinder && (
+        <DuplicateFinder
+          members={members}
+          onDeleteMember={handleDeleteMember}
+          onClose={() => setShowDuplicateFinder(false)}
         />
       )}
     </div>

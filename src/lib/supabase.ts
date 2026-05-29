@@ -30,6 +30,53 @@ try {
 export const isSupabaseConfigured = () => isConfigured;
 export const supabase = supabaseClient;
 
+export async function safeUpsert(payloads: any[], shouldSelect = false) {
+  if (!isConfigured || !supabaseClient) {
+    return { data: null, error: new Error('Supabase is not configured') };
+  }
+
+  // Deep clone payloads so we do not mutate original objects
+  let currentPayloads = JSON.parse(JSON.stringify(payloads));
+  const maxRetries = 10;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    let query = supabaseClient.from('family_members').upsert(currentPayloads);
+    if (shouldSelect) {
+      query = query.select();
+    }
+    const { data, error } = await query;
+
+    if (!error) {
+      return { data, error: null };
+    }
+
+    console.warn(`[safeUpsert] Upsert failed on attempt ${attempt + 1}:`, error);
+
+    // SQL / PostgREST Missing Column error recognition
+    // e.g., "Could not find the 'avatar_url' column of 'family_members' in the schema cache"
+    const missingColumnMatch = error.message.match(/Could not find the '([^']+)' column/);
+    if (missingColumnMatch && missingColumnMatch[1]) {
+      const missingColumn = missingColumnMatch[1];
+      console.warn(`[safeUpsert] Detected missing database column: '${missingColumn}'. Dynamic recovery in action: omitting column and retrying.`);
+      
+      currentPayloads = currentPayloads.map((obj: any) => {
+        const cleaned = { ...obj };
+        delete cleaned[missingColumn];
+        return cleaned;
+      });
+      
+      attempt++;
+      continue;
+    }
+
+    // Return other errors immediately
+    return { data: null, error };
+  }
+
+  return { data: null, error: new Error('Exceeded maximum configuration retry count when dynamically resolving schema columns') };
+}
+
 export function mapToDb(member: FamilyMember) {
   return {
     id: member.id,
@@ -55,6 +102,8 @@ export function mapToDb(member: FamilyMember) {
     father_id: member.fatherId ?? null,
     mother_id: member.motherId ?? null,
     spouse_id: member.spouseId ?? null,
+    created_at: member.createdAt ?? null,
+    updated_at: member.updatedAt ?? null,
   };
 }
 
@@ -83,5 +132,7 @@ export function mapFromDb(row: any): FamilyMember {
     fatherId: row.father_id || undefined,
     motherId: row.mother_id || undefined,
     spouseId: row.spouse_id || undefined,
+    createdAt: row.created_at || undefined,
+    updatedAt: row.updated_at || undefined,
   };
 }

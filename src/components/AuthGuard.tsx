@@ -11,8 +11,20 @@ export function AuthGuard({ children, userEmailToLock }: { children: React.React
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }: any) => {
-      setSession(session);
+    supabase.auth.getSession().then(({ data: { session }, error }: any) => {
+      if (error) {
+        console.warn('Session check error:', error.message);
+        if (error.message?.includes('Refresh Token Not Found') || error.message?.includes('Invalid Refresh Token')) {
+          supabase.auth.signOut().catch(() => {});
+        }
+      }
+      setSession(session || null);
+      setLoading(false);
+    }).catch(err => {
+      console.warn('Session check exception:', err);
+      // Fallback sign out if it hard fails
+      supabase.auth.signOut().catch(() => {});
+      setSession(null);
       setLoading(false);
     });
 
@@ -72,7 +84,7 @@ export function AuthGuard({ children, userEmailToLock }: { children: React.React
                          const { error } = await supabase.auth.signInWithPassword({ email, password });
                          if (error) {
                              if (error.message.includes('Invalid login credentials')) {
-                               setMsg('Invalid password. If this is your first time, click "Register System Owner" below.');
+                               setMsg('Invalid password.');
                              } else {
                                setMsg(error.message);
                              }
@@ -97,22 +109,6 @@ export function AuthGuard({ children, userEmailToLock }: { children: React.React
                        className="w-full text-slate-500 dark:text-slate-400 font-medium py-1.5 rounded-lg text-xs hover:text-slate-700 dark:hover:text-slate-200 transition"
                     >
                        Forgot your password?
-                    </button>
-
-                    <button
-                       onClick={async () => {
-                         if (!password || password.length < 6) {
-                            setMsg('Password must be at least 6 characters.');
-                            return;
-                         }
-                         setMsg('Registering owner...');
-                         const { error } = await supabase.auth.signUp({ email, password });
-                         if (error) setMsg(error.message);
-                         else setMsg('Owner registered successfully! You may now unlock the vault.');
-                       }}
-                       className="w-full text-indigo-600 dark:text-indigo-400 font-bold py-2.5 rounded-lg text-xs hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition border border-indigo-100 dark:border-indigo-800/50"
-                    >
-                       Register System Owner (First Time Only)
                     </button>
                 </div>
              </div>

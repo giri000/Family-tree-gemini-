@@ -9,8 +9,8 @@ import airtableData from '../airtable_data.json';
 
 interface DatabaseControlsProps {
   members: FamilyMember[];
-  onImport: (importedMembers: FamilyMember[]) => void;
-  onClearDatabase: () => void;
+  onImport: (importedMembers: FamilyMember[]) => Promise<void>;
+  onClearDatabase: () => Promise<void>;
 }
 
 export function DatabaseControls({
@@ -45,7 +45,7 @@ export function DatabaseControls({
 
       // Password verified!
       if (confirm('DANGER AREA: This will permanently delete ALL family records in this database, giving you a completely blank setup. Proceed with wipe?')) {
-        onClearDatabase();
+        await onClearDatabase();
         setImportStatus({ type: 'success', message: 'Lineage database cleared. Starting with a blank canvas.' });
         setWipePassword('');
       }
@@ -365,21 +365,21 @@ export function DatabaseControls({
             <h4 className="text-base font-semibold text-slate-800 dark:text-slate-100 font-serif">Database Export & Imports</h4>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-            Your family structure and notes are saved directly inside your browser's persistent sandbox storage. You can download your complete database file to share, or extract an AI-optimized contact dictionary.
+            Your family structure and notes are saved directly inside your connected Supabase SQL database. Database edits and imports sync instantly in real time across clients and active AI workflows.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto">
           <button
-            onClick={() => {
+            onClick={async () => {
               try {
                 // Ensure proper typing for imported JSON
                 const members = airtableData as unknown as FamilyMember[];
-                onImport(members);
+                await onImport(members);
                 setImportStatus({ type: 'success', message: `Successfully loaded ${members.length} members from pre-parsed Airtable!` });
                 setTimeout(() => setImportStatus(null), 5000);
               } catch (err: any) {
-                setImportStatus({ type: 'error', message: err.message });
+                setImportStatus({ type: 'error', message: err.message || 'Error importing records' });
               }
             }}
             className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
@@ -413,9 +413,9 @@ export function DatabaseControls({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="w-full">
         {/* Import file dropzone */}
-        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between space-y-4">
+        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-4">
           <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Restore Backup / Import Airtable</h4>
           
           <div
@@ -458,7 +458,7 @@ export function DatabaseControls({
             <div className={`p-3 rounded-xl text-xs flex gap-2 items-start animate-fade-in ${
               importStatus.type === 'success' 
                 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50' 
-                : 'bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border border-rose-100 dark:border-rose-800/50'
+                : 'bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400 border border-rose-100 dark:border-rose-850'
             }`}>
               {importStatus.type === 'success' ? (
                 <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-500 shrink-0 mt-0.5" />
@@ -468,43 +468,6 @@ export function DatabaseControls({
               <span className="font-medium">{importStatus.message}</span>
             </div>
           )}
-        </div>
-
-        {/* Maintenance / Disaster commands */}
-        <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between space-y-5">
-          <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 font-serif border-b dark:border-slate-800 pb-2">Database Clean Tools</h4>
-
-          <div className="space-y-4 flex-1 flex flex-col justify-center">
-            {/* Action 1: Wipe Everything */}
-            <div className="flex flex-col gap-4">
-              <div>
-                <h5 className="text-xs font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Wipe Database Cache
-                </h5>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Completely and permanently delete all registered nodes in the database to build your own family lineage archives from absolute scratch. Requires authentication to confirm.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <input
-                  type="password"
-                  placeholder="Enter Password to Confirm Wipe"
-                  value={wipePassword}
-                  onChange={(e) => setWipePassword(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                />
-                <button
-                  id="btn-clear-database"
-                  onClick={handleWipeDatabase}
-                  disabled={!wipePassword || isWiping}
-                  className="px-4 py-2 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg cursor-pointer transition-colors font-semibold text-sm w-full shadow-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {isWiping ? 'Verifying...' : 'Confirm Wipe Database'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

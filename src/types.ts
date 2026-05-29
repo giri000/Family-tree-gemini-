@@ -26,6 +26,10 @@ export interface FamilyMember {
   fatherId?: string;
   motherId?: string;
   spouseId?: string; // Primary current spouse/partner
+
+  // Audit timestamps
+  createdAt?: string; // ISO 8601 string or date
+  updatedAt?: string; // ISO 8601 string or date
 }
 
 export interface FamilyTreeData {
@@ -33,4 +37,4 @@ export interface FamilyTreeData {
   title: string;
 }
 
-export type ActiveTab = 'tree' | 'members' | 'timeline' | 'stats';
+export type ActiveTab = 'tree' | 'constellation' | 'members' | 'timeline' | 'stats';

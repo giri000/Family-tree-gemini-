@@ -104,7 +104,7 @@ export function StatsDashboard({ members, onFocusMember }: StatsDashboardProps) 
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Kinship</span>
             <h3 className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-100">{totalCount} members</h3>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Recorded in memory file</p>
+            <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">Synchronized with Supabase DB</p>
           </div>
         </div>
 

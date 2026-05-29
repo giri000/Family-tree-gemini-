@@ -181,6 +181,8 @@ export function MemberForm({
       fatherId: fatherId || undefined,
       motherId: motherId || undefined,
       spouseId: spouseId || undefined,
+      createdAt: member?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     onSave(savedMember);
