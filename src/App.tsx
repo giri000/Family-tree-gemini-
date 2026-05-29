@@ -30,7 +30,7 @@ import {
   Network
 } from 'lucide-react';
 
-import { supabase, mapToDb, mapFromDb, isSupabaseConfigured, safeUpsert } from './lib/supabase';
+import { supabase, mapToDb, mapFromDb, isSupabaseConfigured, safeUpsert, missingDbColumns } from './lib/supabase';
 import { SupabaseSetup } from './components/SupabaseSetup';
 
 import { AuthGuard } from './components/AuthGuard';
@@ -41,6 +41,17 @@ export default function App() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [focusMemberId, setFocusMemberId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<ActiveTab | 'database'>('tree');
+  const [dbWarnings, setDbWarnings] = useState<string[]>([]);
+  
+  // Periodically check if safeUpsert detected any missing DB schema columns (such as blood_group or secondary_phone)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (missingDbColumns.length !== dbWarnings.length) {
+        setDbWarnings([...missingDbColumns]);
+      }
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [dbWarnings.length]);
   
   // Search & Filters for the Member Directory View
   const [memberSearch, setMemberSearch] = useState('');
@@ -77,7 +88,12 @@ export default function App() {
         setMembers(parsed);
         setFocusMemberId(prev => {
           if (!prev && parsed.length > 0) {
-            return parsed.find(m => m.id === '11111111-1111-4111-a111-111111111118')?.id || parsed[0].id;
+            const giri = parsed.find(m => 
+              m.id === 'db0ed3db-fb87-4573-8966-2322428f51e7' || 
+              m.email === 'giriprasath51@gmail.com' || 
+              (m.firstName && m.firstName.toLowerCase().includes('giri'))
+            );
+            return giri?.id || parsed.find(m => m.id === '11111111-1111-4111-a111-111111111118')?.id || parsed[0].id;
           }
           return prev;
         });
@@ -107,7 +123,13 @@ export default function App() {
   }
 
   // 3. Resolve Active Focus Member
-  const currentFocusMember = members.find((m) => m.id === focusMemberId) || members[0];
+  const currentFocusMember = members.find((m) => m.id === focusMemberId) || 
+    members.find(m => 
+      m.id === 'db0ed3db-fb87-4573-8966-2322428f51e7' || 
+      m.email === 'giriprasath51@gmail.com' || 
+      (m.firstName && m.firstName.toLowerCase().includes('giri'))
+    ) || 
+    members[0];
 
   // 4. Async Supabase Sync Handler 
   const handleSaveMember = async (savedMember: FamilyMember) => {
@@ -340,104 +362,130 @@ export default function App() {
             </button>
           </div>
         )}
+        
+        {dbWarnings.length > 0 && (
+          <div className="bg-amber-500 text-slate-900 text-xs py-3 px-6 font-semibold flex flex-col lg:flex-row items-center justify-between gap-3 shadow-md animate-fade-in border-b border-amber-600/30">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-slate-900 shrink-0" />
+              <span>
+                <strong>Database Schema Outdated:</strong> Your Supabase table is missing the columns: <code className="bg-amber-600/20 px-1 py-0.5 rounded text-slate-950 font-serif">{dbWarnings.join(', ')}</code>. Blood groups and second phone numbers are being omitted during saves to prevent database crashes. Run this SQL in your Supabase SQL Editor:
+              </span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto justify-end">
+              <code className="bg-slate-950 text-amber-350 font-mono text-[10px] py-1.5 px-3 rounded border border-slate-800 select-all max-w-sm truncate lg:max-w-none">
+                {`ALTER TABLE public.family_members ${dbWarnings.map(col => `ADD COLUMN IF NOT EXISTS ${col} text`).join(', ')};`}
+              </code>
+              <button 
+                onClick={() => {
+                  const sql = `ALTER TABLE public.family_members ${dbWarnings.map(col => `ADD COLUMN IF NOT EXISTS ${col} text`).join(', ')};`;
+                  navigator.clipboard.writeText(sql);
+                  alert('Schema migration SQL copied to clipboard! Paste and run it in your Supabase SQL Editor to enable saving.');
+                }}
+                className="bg-slate-950 hover:bg-slate-900 text-amber-300 font-bold px-3 py-1.5 rounded-full text-[10px] border border-slate-800 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+              >
+                Copy SQL
+              </button>
+            </div>
+          </div>
+        )}
       {/* Editorial Navigation Header */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/80 sticky top-0 z-40 transition-all">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
           
-          {/* Brand Logo & Heirloom styling */}
+          {/* Brand Logo & Heirloom styling - M3 Small Container shape */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-transform">
+              <BookOpen className="w-5.5 h-5.5" />
             </div>
             <div className="text-center sm:text-left">
-              <h1 className="text-base font-bold font-serif text-slate-800 dark:text-slate-100 flex items-center gap-1.5 justify-center sm:justify-start">
+              <h1 className="text-lg font-bold font-serif text-slate-800 dark:text-slate-100 flex items-center gap-1.5 justify-center sm:justify-start tracking-tight">
                 Kinship Trace
               </h1>
             </div>
           </div>
 
-          {/* Tab Selection */}
-          <div className="w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
-            <nav className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 w-max sm:w-auto mx-auto sm:mx-0 transition-colors">
+          {/* Tab Selection - MD3 Segmented Button / Pill Layout */}
+          <div className="w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
+            <nav className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-950/80 p-1.5 rounded-full border border-slate-200/60 dark:border-slate-800/80 text-xs font-semibold text-slate-600 dark:text-slate-400 w-max md:w-auto mx-auto md:mx-0 transition-all shadow-xs">
               <button
                 id="tab-btn-tree"
                 onClick={() => setActiveTab('tree')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'tree'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <GitFork className="w-3.5 h-3.5 rotate-90" />
+                <GitFork className="w-4 h-4 rotate-90" />
                 <span>Interactive Tree</span>
               </button>
               <button
                 id="tab-btn-constellation"
                 onClick={() => setActiveTab('constellation')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'constellation'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <Network className="w-3.5 h-3.5" />
+                <Network className="w-4 h-4" />
                 <span>Kinship Constellation</span>
               </button>
               <button
                 id="tab-btn-members"
                 onClick={() => setActiveTab('members')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'members'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-4 h-4" />
                 <span>Member Gallery</span>
               </button>
               <button
                 id="tab-btn-timeline"
                 onClick={() => setActiveTab('timeline')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'timeline'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5" />
+                <Clock className="w-4 h-4" />
                 <span>Timeline</span>
               </button>
               <button
                 id="tab-btn-stats"
                 onClick={() => setActiveTab('stats')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'stats'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <BarChart className="w-3.5 h-3.5" />
+                <BarChart className="w-4 h-4" />
                 <span>Diagnostics</span>
               </button>
               <button
                 id="tab-btn-database"
                 onClick={() => setActiveTab('database')}
-                className={`flex items-center gap-1 px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   activeTab === 'database'
-                    ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-700 dark:text-indigo-300'
-                    : 'hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-200/50 dark:ring-indigo-900/30 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-900/40'
                 }`}
               >
-                <Database className="w-3.5 h-3.5" />
+                <Database className="w-4 h-4" />
                 <span>Backups</span>
               </button>
             </nav>
           </div>
 
-          {/* Header Actions */}
+          {/* Header Actions - M3 Styled Layout */}
           <div className="flex items-center gap-2">
             {members.length > 0 && (
-              <div className="flex items-center gap-2 mr-2">
+              <div className="flex items-center gap-2 mr-1">
                 <MemberSearch
                   members={members}
                   currentFocusId={focusMemberId}
@@ -454,9 +502,9 @@ export default function App() {
             <button
               onClick={() => supabase.auth.signOut()}
               title="Lock Vault"
-              className="flex items-center justify-center w-10 h-10 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-800/40 border border-rose-100 dark:border-rose-800/50 hover:border-rose-200 dark:hover:border-rose-700 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+              className="flex items-center justify-center w-10 h-10 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100/85 dark:hover:bg-rose-900/55 border border-rose-100 dark:border-rose-900/50 rounded-2xl transition-all shadow-xs hover:shadow-md cursor-pointer select-none active:scale-95"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4.5 h-4.5" />
             </button>
             <button
               id="btn-global-add-member"
@@ -467,7 +515,7 @@ export default function App() {
                 setPendingParentLink(undefined);
                 setShowForm(true);
               }}
-              className="flex items-center justify-center w-10 h-10 text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-xl transition-all shadow-xs cursor-pointer select-none"
+              className="flex items-center justify-center w-10 h-10 text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-2xl transition-all shadow-sm hover:shadow-lg cursor-pointer select-none active:scale-95 duration-150"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -543,21 +591,21 @@ export default function App() {
             {/* TAB 2: MEMBER DIRECTORY / GALLERY */}
             {activeTab === 'members' && (
               <div className="space-y-6">
-                {/* Search / Filters Interface */}
-                <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between transition-colors">
-                  <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
+                {/* Search / Filters Interface - MD3 Styled Container */}
+                <div className="bg-white/80 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex flex-col xl:flex-row gap-5 items-center justify-between transition-all">
+                  <div className="relative w-full xl:w-96">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                     <input
                       id="input-directory-search"
                       type="text"
                       placeholder="Search name, notes, job..."
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 placeholder-slate-400 dark:placeholder-slate-500 transition-colors"
+                      className="w-full pl-11 pr-4 py-2.5 text-xs font-semibold rounded-full border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 placeholder-slate-400 dark:placeholder-slate-500 transition-all shadow-xs"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3.5 w-full md:w-auto">
+                  <div className="flex flex-wrap items-center gap-3.5 w-full xl:w-auto">
                     {/* Filter Gender */}
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Gender:</span>
@@ -565,7 +613,7 @@ export default function App() {
                         id="select-filter-gender"
                         value={genderFilter}
                         onChange={(e) => setGenderFilter(e.target.value)}
-                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 rounded-full py-1.5 px-3.5 cursor-pointer transition-colors focus:ring-2 focus:ring-indigo-500/10 focus:outline-hidden"
                       >
                         <option value="all">All Genders</option>
                         <option value="male">Male</option>
@@ -581,7 +629,7 @@ export default function App() {
                         id="select-filter-status"
                         value={lifespanFilter}
                         onChange={(e) => setLifespanFilter(e.target.value)}
-                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 rounded-full py-1.5 px-3.5 cursor-pointer transition-colors focus:ring-2 focus:ring-indigo-500/10 focus:outline-hidden"
                       >
                         <option value="all">All Records</option>
                         <option value="living">Living Only</option>
@@ -589,18 +637,18 @@ export default function App() {
                       </select>
                     </div>
 
-                    {/* Sorting categories requested: name, created, edited, date of birth */}
+                    {/* Sorting categories requested */}
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Sort By:</span>
                       <select
                         id="select-sort-directory"
                         value={directorySort}
                         onChange={(e) => setDirectorySort(e.target.value)}
-                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 cursor-pointer transition-colors"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 rounded-full py-1.5 px-3.5 cursor-pointer transition-colors focus:ring-2 focus:ring-indigo-500/10 focus:outline-hidden"
                       >
-                        <option value="name-asc font-semibold">Name (A-Z)</option>
-                        <option value="name-desc font-semibold">Name (Z-A)</option>
-                        <option value="created-desc font-semibold">Date Added (Newest)</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                        <option value="created-desc">Date Added (Newest)</option>
                         <option value="created-asc font-semibold">Date Added (Oldest)</option>
                         <option value="edited-desc font-semibold">Latest Edited</option>
                         <option value="dob-asc font-semibold">DOB (Oldest first)</option>
@@ -608,11 +656,11 @@ export default function App() {
                       </select>
                     </div>
 
-                    {/* Duplicate Finder Button */}
+                    {/* Duplicate Finder Button - M3 Outlined Tonal variant */}
                     <button
                       id="btn-show-duplicate-finder"
                       onClick={() => setShowDuplicateFinder(true)}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-950/45 text-indigo-700 dark:text-indigo-400 cursor-pointer transition flex items-center gap-1"
+                      className="text-xs font-bold px-4 py-2 rounded-full border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100/85 dark:hover:bg-indigo-950/65 text-indigo-700 dark:text-indigo-400 cursor-pointer transition flex items-center gap-1.5 shadow-xs"
                     >
                       <span>🔍</span> <span>Find Duplicates</span>
                     </button>
@@ -647,25 +695,25 @@ export default function App() {
                         <div
                           key={member.id}
                           id={`directory-card-${member.id}`}
-                          className="bg-white dark:bg-slate-800 border dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:shadow-xs transition-all relative overflow-hidden"
+                          className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-5 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-755 transition-all relative overflow-hidden"
                         >
                           <div className="space-y-3">
                             {/* Profile Badge row */}
                             <div className="flex items-start justify-between">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-serif text-sm font-bold shadow-2xs ${member.avatarColor}`}>
+                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-serif text-sm font-bold shadow-2xs ${member.avatarColor}`}>
                                 {member.firstName[0]}{member.lastName?.[0] || ''}
                               </div>
                               
                               <div className="flex flex-col items-end gap-1">
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold capitalize ${
-                                  member.gender === 'male' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : member.gender === 'female' ? 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-750 dark:text-slate-300'
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold capitalize ${
+                                  member.gender === 'male' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-350' : member.gender === 'female' ? 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-350' : 'bg-slate-100 dark:bg-slate-700 text-slate-750 dark:text-slate-350'
                                 }`}>
                                   {member.gender}
                                 </span>
                                 {member.isDeceased ? (
-                                  <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-1.5 py-0.5 rounded">Passed</span>
+                                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">Passed</span>
                                 ) : (
-                                  <span className="text-[9px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">Age {age}</span>
+                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-450 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Age {age}</span>
                                 )}
                               </div>
                             </div>
@@ -690,8 +738,23 @@ export default function App() {
                                 </p>
                               )}
                               {member.bloodGroup && (
-                                <p className="text-[11px] font-medium text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                                <p className="text-[11px] font-medium text-rose-700 dark:text-rose-450 flex items-center gap-1">
                                   🩸 {member.bloodGroup}
+                                </p>
+                              )}
+                              {member.email && (
+                                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate" title={member.email}>
+                                  ✉️ {member.email}
+                                </p>
+                              )}
+                              {member.phone && (
+                                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                  📞 {member.phone}{member.secondaryPhone && ` / ${member.secondaryPhone}`}
+                                </p>
+                              )}
+                              {!member.phone && member.secondaryPhone && (
+                                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                  📞 {member.secondaryPhone}
                                 </p>
                               )}
                               {parentNames.length > 0 && (
@@ -700,15 +763,15 @@ export default function App() {
                                 </p>
                               )}
                               {member.notes && (
-                                <p className="text-[10px] italic text-slate-400 dark:text-slate-500 line-clamp-2 mt-1">
+                                <p className="text-[10px] italic text-slate-400 dark:text-slate-550 line-clamp-2 mt-1">
                                   "{member.notes}"
                                 </p>
                               )}
                             </div>
                           </div>
 
-                          {/* Quick tool row */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700">
+                          {/* Quick tool row - M3 Pill buttons */}
+                          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
                             <button
                               id={`dir-edit-btn-${member.id}`}
                               onClick={() => {
@@ -717,7 +780,7 @@ export default function App() {
                                 setPendingParentLink(undefined);
                                 setShowForm(true);
                               }}
-                              className="text-[10px] font-semibold text-center hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg py-1 hover:text-slate-700 dark:hover:text-slate-200 text-slate-600 dark:text-slate-400 cursor-pointer transition-colors"
+                              className="text-[10px] font-bold text-center hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full py-1.5 hover:text-slate-700 dark:hover:text-slate-200 text-slate-600 dark:text-slate-450 cursor-pointer transition-all"
                             >
                               Edit Profile
                             </button>
@@ -727,7 +790,7 @@ export default function App() {
                                 setFocusMemberId(member.id);
                                 setActiveTab('tree');
                               }}
-                              className="text-[10px] font-semibold text-center text-indigo-650 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/50 rounded-lg py-1 cursor-pointer transition-colors"
+                              className="text-[10px] font-bold text-center text-indigo-750 dark:text-indigo-350 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-100/30 dark:border-indigo-900/20 rounded-full py-1.5 cursor-pointer transition-all"
                             >
                               Center Tree
                             </button>

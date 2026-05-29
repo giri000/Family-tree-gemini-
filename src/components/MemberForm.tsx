@@ -537,17 +537,25 @@ export function MemberForm({
               </div>
 
               <div>
-                <label className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label htmlFor="input-blood-group" className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Blood Group
                 </label>
-                <input
+                <select
                   id="input-blood-group"
-                  type="text"
                   value={bloodGroup}
                   onChange={(e) => setBloodGroup(e.target.value)}
-                  placeholder="e.g. O+, A-, B+"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
-                />
+                >
+                  <option value="">Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
               </div>
 
               <div className="md:col-span-2">

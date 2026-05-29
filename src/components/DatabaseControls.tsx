@@ -240,11 +240,13 @@ export function DatabaseControls({
               const deathKey = Object.keys(row).find(k => k.toLowerCase().includes('death'));
               const occupationKey = Object.keys(row).find(k => k.toLowerCase().includes('occupation') || k.toLowerCase() === 'job');
               const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));
-              const phoneKey = Object.keys(row).find(k => k.toLowerCase().includes('phone'));
+              const phoneKey = Object.keys(row).find(k => k.toLowerCase().trim() === 'phone' || k.toLowerCase() === 'mobile');
+              const secondaryPhoneKey = Object.keys(row).find(k => k.toLowerCase().includes('secondary') || k.toLowerCase().includes('second phone') || k.toLowerCase().includes('secondary_phone'));
+              const bloodGroupKey = Object.keys(row).find(k => k.toLowerCase().includes('blood') || k.toLowerCase() === 'bloodGroup' || k.toLowerCase() === 'blood_group');
               const addressKey = Object.keys(row).find(k => k.toLowerCase().includes('address') || k.toLowerCase() === 'location');
               
               // Standard specific mapped columns
-              const mappedKeys = new Set([firstKey, lastKey, nameKey, genderKey, birthKey, deathKey, occupationKey, emailKey, phoneKey, addressKey]);
+              const mappedKeys = new Set([firstKey, lastKey, nameKey, genderKey, birthKey, deathKey, occupationKey, emailKey, phoneKey, secondaryPhoneKey, bloodGroupKey, addressKey]);
               
               // Collect all unmapped data for the `notes` field so no detail from airtable is lost.
               let extraNotes = [];
@@ -274,6 +276,8 @@ export function DatabaseControls({
                 occupation: occupationKey ? (row[occupationKey] || undefined) : undefined,
                 email: emailKey ? (row[emailKey] || undefined) : undefined,
                 phone: phoneKey ? (row[phoneKey] || undefined) : undefined,
+                secondaryPhone: secondaryPhoneKey ? (row[secondaryPhoneKey] || undefined) : undefined,
+                bloodGroup: bloodGroupKey ? (row[bloodGroupKey] || undefined) : undefined,
                 address: addressKey ? (row[addressKey] || undefined) : undefined,
                 notes: extraNotes.length > 0 ? extraNotes.join('\\n\\n') : undefined
               };

@@ -35,10 +35,10 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+      className="flex items-center justify-center w-10 h-10 rounded-2xl border border-slate-200/50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-100/85 dark:hover:bg-slate-800/85 hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xs hover:shadow-md cursor-pointer select-none active:scale-95"
       title="Toggle Dark Mode"
     >
-      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      {isDark ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
     </button>
   );
 }

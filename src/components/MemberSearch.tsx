@@ -38,10 +38,10 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
   return (
     <div className="relative w-48 sm:w-64" ref={wrapperRef}>
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
-          className="w-full pl-9 pr-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500 shadow-sm"
+          className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/55 border border-slate-200/50 dark:border-slate-750 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all placeholder-slate-400 dark:placeholder-slate-500 shadow-xs"
           placeholder="Search member..."
           value={displayValue}
           onFocus={() => {
@@ -56,9 +56,9 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
       </div>
 
       {isOpen && (
-        <div className="absolute top-full mt-1.5 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto z-50 overflow-hidden">
+        <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700 rounded-2xl shadow-xl max-h-60 overflow-y-auto z-50 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
           {filteredMembers.length > 0 ? (
-            <div className="p-1">
+            <div className="p-1.5 space-y-0.5">
               {filteredMembers.map((member) => (
                 <button
                   key={member.id}
@@ -66,10 +66,10 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
                     onSelect(member.id);
                     setIsOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-between ${
+                  className={`w-full text-left px-3.5 py-2.5 text-xs rounded-xl transition-colors flex items-center justify-between ${
                     member.id === currentFocusId 
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold' 
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-medium'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40 font-medium'
                   }`}
                 >
                   <span className="truncate">{member.firstName} {member.lastName || ''}</span>
@@ -77,7 +77,7 @@ export function MemberSearch({ members, onSelect, currentFocusId }: MemberSearch
               ))}
             </div>
           ) : (
-            <div className="px-3 py-4 text-xs text-center text-slate-500 dark:text-slate-400">
+            <div className="px-3 py-4 text-xs text-center text-slate-500 dark:text-slate-400 font-medium">
               No members found
             </div>
           )}

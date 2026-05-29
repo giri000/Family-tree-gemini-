@@ -117,7 +117,7 @@ export function MemberCard({
       
       {/* Contact & AI Status Indicators */}
       <div className="mt-1.5 flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
-        {(member.email || member.phone) && (
+        {(member.email || member.phone || member.secondaryPhone) && (
           <span title="Contact Info Available" className="p-0.5 rounded-full bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400">
             <MessageSquare className="w-3 h-3" />
           </span>

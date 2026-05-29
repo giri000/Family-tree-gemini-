@@ -108,7 +108,7 @@ export function DuplicateFinder({ members, onDeleteMember, onClose }: DuplicateF
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-serif font-bold text-slate-800 dark:text-slate-150">Lineage Duplicate Finder</h3>
+              <h3 className="text-lg font-serif font-bold text-slate-800 dark:text-slate-100">Lineage Duplicate Finder</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Scan and resolve records containing duplicate name, birthdates, or details.</p>
             </div>
           </div>
@@ -202,7 +202,7 @@ export function DuplicateFinder({ members, onDeleteMember, onClose }: DuplicateF
                   </div>
 
                   {/* Duplicate profiles side-by-side grids */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-150 dark:bg-slate-800">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800">
                     {group.membersList.map((member) => (
                       <div key={member.id} className="bg-white dark:bg-slate-900 p-5 flex flex-col justify-between space-y-4">
                         

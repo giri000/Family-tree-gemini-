@@ -29,6 +29,7 @@ try {
 
 export const isSupabaseConfigured = () => isConfigured;
 export const supabase = supabaseClient;
+export const missingDbColumns: string[] = [];
 
 export async function safeUpsert(payloads: any[], shouldSelect = false) {
   if (!isConfigured || !supabaseClient) {
@@ -60,6 +61,10 @@ export async function safeUpsert(payloads: any[], shouldSelect = false) {
       const missingColumn = missingColumnMatch[1];
       console.warn(`[safeUpsert] Detected missing database column: '${missingColumn}'. Dynamic recovery in action: omitting column and retrying.`);
       
+      if (!missingDbColumns.includes(missingColumn)) {
+        missingDbColumns.push(missingColumn);
+      }
+
       currentPayloads = currentPayloads.map((obj: any) => {
         const cleaned = { ...obj };
         delete cleaned[missingColumn];
