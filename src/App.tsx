@@ -98,7 +98,8 @@ export default function App() {
               if (match) return match;
 
               // 3. Look for email match
-              match = parsed.find(m => m.email === 'giriprasath51@gmail.com');
+              const defaultUserEmail = import.meta.env.VITE_APP_USER_EMAIL || 'giriprasath51@gmail.com';
+              match = parsed.find(m => m.email === defaultUserEmail);
               if (match) return match;
 
               // 4. Look for exact first name "giri"
@@ -143,10 +144,11 @@ export default function App() {
   }
 
   // 3. Resolve Active Focus Member
+  const defaultUserEmail = import.meta.env.VITE_APP_USER_EMAIL || 'giriprasath51@gmail.com';
   const currentFocusMember = members.find((m) => m.id === focusMemberId) || 
     members.find(m => 
       m.id === 'db0ed3db-fb87-4573-8966-2322428f51e7' || 
-      m.email === 'giriprasath51@gmail.com' || 
+      m.email === defaultUserEmail || 
       (m.firstName && m.firstName.toLowerCase().includes('giri'))
     ) || 
     members[0];
@@ -369,7 +371,7 @@ export default function App() {
   });
 
   return (
-    <AuthGuard userEmailToLock="giriprasath51@gmail.com">
+    <AuthGuard userEmailToLock={import.meta.env.VITE_APP_USER_EMAIL || "giriprasath51@gmail.com"}>
       <div id="family-tree-app-root" className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col font-sans antialiased">
         {dbError && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-rose-600 text-white text-xs py-2.5 px-4 text-center font-semibold flex items-center justify-center gap-2 shadow-md animate-pulse">

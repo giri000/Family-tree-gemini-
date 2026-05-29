@@ -5,7 +5,7 @@ import { Mail, Lock, LogOut } from 'lucide-react';
 export function AuthGuard({ children, userEmailToLock }: { children: React.ReactNode, userEmailToLock: string }) {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState(userEmailToLock);
+  const [email] = useState(import.meta.env.VITE_APP_USER_EMAIL || userEmailToLock);
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [msg, setMsg] = useState('');

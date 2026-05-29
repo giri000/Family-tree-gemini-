@@ -26,6 +26,7 @@ export function SupabaseSetup() {
               <div className="bg-slate-800 text-slate-300 p-3 rounded-xl font-mono text-[10px] space-y-1">
                 <p><span className="text-pink-400">VITE_SUPABASE_URL</span> = "https://your-project.supabase.co"</p>
                 <p><span className="text-pink-400">VITE_SUPABASE_ANON_KEY</span> = "your-anon-role-key-string"</p>
+                <p><span className="text-pink-400">VITE_APP_USER_EMAIL</span> = "your-email@example.com"</p>
               </div>
             </div>
           </div>

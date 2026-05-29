@@ -48,7 +48,8 @@ Kinship Trace integrates with **Supabase Realtime** for persistent data synchron
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | `text (PK)` | Unique UUID targeting each family member. |
+| `id` | `uuid (PK)` | Unique UUID identifying each family member. |
+| `user_id` | `uuid (FK)` | Links member to auth user for Row Level Security (RLS). |
 | `first_name` | `text` | First name (Required). |
 | `last_name` | `text` | Last name of the member. |
 | `gender` | `text` | Gender identity factor (`male`, `female`, `other`). |
@@ -62,9 +63,9 @@ Kinship Trace integrates with **Supabase Realtime** for persistent data synchron
 | `email` | `text` | Email address (if applicable). |
 | `phone` | `text` | Phone number. |
 | `secondary_phone` | `text` | Alternative coordinate line. |
-| `father_id` | `text` | Relationship pointer referencing a father. |
-| `mother_id` | `text` | Relationship pointer referencing a mother. |
-| `spouse_id` | `text` | Relationship pointer referencing a spouse. |
+| `father_id` | `uuid (FK)` | Relationship pointer referencing a father. |
+| `mother_id` | `uuid (FK)` | Relationship pointer referencing a mother. |
+| `spouse_id` | `uuid (FK)` | Relationship pointer referencing a spouse. |
 
 ---
 
@@ -74,7 +75,8 @@ Run the SQL script found in `supabase-schema.sql` in your Supabase SQL Editor to
 
 ```sql
 create table public.family_members (
-  id text primary key,
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null default auth.uid(),
   first_name text not null,
   last_name text,
   gender text,

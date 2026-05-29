@@ -5,7 +5,6 @@ import Papa from 'papaparse';
 import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import airtableData from '../airtable_data.json';
 
 interface DatabaseControlsProps {
   members: FamilyMember[];
@@ -374,23 +373,6 @@ export function DatabaseControls({
         </div>
 
         <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto">
-          <button
-            onClick={async () => {
-              try {
-                // Ensure proper typing for imported JSON
-                const members = airtableData as unknown as FamilyMember[];
-                await onImport(members);
-                setImportStatus({ type: 'success', message: `Successfully loaded ${members.length} members from pre-parsed Airtable!` });
-                setTimeout(() => setImportStatus(null), 5000);
-              } catch (err: any) {
-                setImportStatus({ type: 'error', message: err.message || 'Error importing records' });
-              }
-            }}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm w-full"
-          >
-            <Download className="w-4 h-4" /> Load Demo Airtable
-          </button>
-
           <button
             id="btn-export-pdf"
             onClick={handleExportPDF}
